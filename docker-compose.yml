@@ -1,0 +1,13 @@
+services:
+  backend:
+    build: ./backend
+    environment:
+      SYNC_KEY: ${SYNC_KEY:?SYNC_KEY majburiy (.env fayliga qo'shing)}
+    volumes:
+      - db_data:/app/data
+    ports:
+      - "8021:8000"
+    restart: unless-stopped
+
+volumes:
+  db_data:

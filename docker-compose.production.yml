@@ -1,0 +1,13 @@
+# Production rejimida ishga tushirish:
+#   docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --build
+services:
+  backend:
+    container_name: kochatzor-backend
+    ports: !override []
+    networks:
+      - default
+      - gardenai_proxy
+
+networks:
+  gardenai_proxy:
+    external: true

@@ -11,6 +11,9 @@ keystore.properties
 *.jks
 *.keystore
 
+# Sync server credentials
+secrets.properties
+
 # Android Studio / IntelliJ
 .idea/
 *.iml

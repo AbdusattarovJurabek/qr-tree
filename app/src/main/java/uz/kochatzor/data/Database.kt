@@ -41,6 +41,9 @@ data class Survey(
  @Upsert suspend fun save(row: Survey)
  @Query("UPDATE surveys SET isDeleted=1, updatedAt=:now, syncStatus='PENDING' WHERE id=:id") suspend fun delete(id: String, now: Long)
  @Query("SELECT * FROM surveys WHERE syncStatus!='SYNCED'") suspend fun pendingSync(): List<Survey>
+ // Faqat server tasdiqlagan updatedAt hali ham joriy bo'lsa SYNCED belgilanadi;
+ // shu oraliqda foydalanuvchi qayta tahrirlagan bo'lsa (updatedAt o'zgargan), PENDING holida qoladi.
+ @Query("UPDATE surveys SET syncStatus='SYNCED' WHERE id=:id AND updatedAt=:expectedUpdatedAt") suspend fun markSynced(id: String, expectedUpdatedAt: Long)
 }
 @Database(entities=[Region::class,District::class,Mahalla::class,ReferenceMeta::class],version=1,exportSchema=true)
 abstract class ReferenceDb: RoomDatabase() {
