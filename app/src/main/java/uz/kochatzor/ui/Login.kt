@@ -1,6 +1,8 @@
 package uz.kochatzor.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -40,7 +42,10 @@ fun LoginScreen(onLoggedIn: () -> Unit) {
  }
 
  AppBackground {
-  Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+  Box(
+   Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
+   contentAlignment = Alignment.Center,
+  ) {
    GlassCard(modifier = Modifier.fillMaxWidth()) {
     Column(Modifier.padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
      Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(56.dp)) {
