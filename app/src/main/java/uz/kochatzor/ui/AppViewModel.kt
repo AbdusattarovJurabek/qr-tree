@@ -115,18 +115,18 @@ class AppViewModel(app:Application,private val saved:SavedStateHandle):AndroidVi
    } finally {busy.value=false}
   }
  }
- fun delete(s:Survey,done:()->Unit)=action {repo.delete(s.id);done();notify("Yozuv o‘chirildi")}
+ fun delete(s:Survey,done:()->Unit)=action {repo.delete(s.id);done();notify("Ko‘chat o‘chirildi")}
  fun export(everything:Boolean) {
   if(busy.value)return
   busy.value=true
   action { try {
    val snapshot=repo.observe(if(everything)Filters() else filters.value).first().filter { it.tree.isNotBlank() }
-   require(snapshot.isNotEmpty()) {"Eksport uchun yozuvlar yo‘q"}
+   require(snapshot.isNotEmpty()) {"Eksport uchun ko‘chatlar yo‘q"}
    exportFile.value=withContext(Dispatchers.IO) {
     val dir=File(getApplication<Application>().cacheDir,"exports").apply {mkdirs()}
     val file=File(dir,"kochatzor_${LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))}.xlsx")
     try {file.outputStream().use {Xlsx.write(snapshot,it)};file} catch(e:Exception) {file.delete();throw e}
-   };notify("Excel tayyor: ${snapshot.size} ta yozuv")
+   };notify("Excel tayyor: ${snapshot.size} ta ko‘chat")
   } finally {busy.value=false} }
  }
 }

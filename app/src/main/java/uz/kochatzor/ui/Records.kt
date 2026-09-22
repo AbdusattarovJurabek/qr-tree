@@ -2,8 +2,7 @@ package uz.kochatzor.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -132,20 +131,39 @@ import uz.kochatzor.domain.Filters
 }
 
 @Composable fun FilterDialog(vm:AppViewModel,current:Filters,close:()->Unit) {
- var f by remember {mutableStateOf(current)};var rn by rememberSaveable {mutableStateOf(f.regionName)};var dn by rememberSaveable {mutableStateOf(f.districtName)};var mn by rememberSaveable {mutableStateOf(f.mahallaName)}
+ var f by remember {mutableStateOf(current)}
+ val periods = listOf("Barchasi","Bugun","Kecha","Shu hafta","O‘tgan hafta","Shu oy","O‘tgan oy","Sana oralig‘i")
  Dialog(onDismissRequest=close) {
-  Surface(shape=MaterialTheme.shapes.extraLarge, color=MaterialTheme.colorScheme.surface) {
-   Column(Modifier.fillMaxWidth().heightIn(max=620.dp).padding(24.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(16.dp)) {
-    Text("Qidiruv filtrlari",style=MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-    Choice("Davr",f.period,listOf("Barchasi","Bugun","Kecha","Shu hafta","O‘tgan hafta","Shu oy","O‘tgan oy","Sana oralig‘i").mapIndexed {i,s->i.toLong() to s}){_,s->f=f.copy(period=s)}
-    if(f.period=="Sana oralig‘i") {Field("Boshlanish: YYYY-MM-DD",f.from){f=f.copy(from=it)};Field("Tugash: YYYY-MM-DD",f.to){f=f.copy(to=it)}}
-    Address(vm,f.region,rn,f.district,dn,mn, showMahalla = true, {id,n->rn=n;dn="";mn="";f=f.copy(region=id,district=0,mahalla=0,regionName=n,districtName="",mahallaName="")},{id,n->dn=n;mn="";f=f.copy(district=id,mahalla=0,districtName=n,mahallaName="")},{id,n->mn=n;f=f.copy(mahalla=id,mahallaName=n)})
-    Choice("Ko‘chat turi",f.tree,(listOf("Barchasi")+trees).mapIndexed {i,s->i.toLong() to s}){_,s->f=f.copy(tree=if(s=="Barchasi")"" else s)}
-    
-    Spacer(Modifier.height(8.dp))
-    Button(onClick={if(vm.applyFilters(f))close()},modifier=Modifier.fillMaxWidth().heightIn(min = 50.dp)){Text("Qo‘llash", fontWeight = FontWeight.Bold)}
-    TextButton(onClick={f=Filters(query=current.query);rn="";dn="";mn=""}, modifier=Modifier.fillMaxWidth()){Text("Filtrlarni tozalash")}
-    TextButton(onClick=close, modifier=Modifier.fillMaxWidth()){Text("Bekor qilish", color=MaterialTheme.colorScheme.onSurfaceVariant)}
+  Surface(shape=RoundedCornerShape(28.dp), color=MaterialTheme.colorScheme.surface) {
+   Column(Modifier.fillMaxWidth().padding(24.dp),verticalArrangement=Arrangement.spacedBy(20.dp)) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+     Icon(Icons.Outlined.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+     Spacer(Modifier.width(10.dp))
+     Text("Davrni tanlang",style=MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+    }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+     periods.forEach { p ->
+      FilterChip(
+       selected = f.period==p,
+       onClick = {f=f.copy(period=p)},
+       label = {Text(p)},
+       shape = RoundedCornerShape(14.dp)
+      )
+     }
+    }
+    if(f.period=="Sana oralig‘i") {
+     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+      Field("Boshlanish: YYYY-MM-DD",f.from){f=f.copy(from=it)}
+      Field("Tugash: YYYY-MM-DD",f.to){f=f.copy(to=it)}
+     }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+     Button(onClick={if(vm.applyFilters(f))close()},modifier=Modifier.fillMaxWidth().heightIn(min = 52.dp), shape = RoundedCornerShape(16.dp)){Text("Qo‘llash", fontWeight = FontWeight.Bold)}
+     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+      TextButton(onClick={f=Filters(query=current.query)}, modifier=Modifier.weight(1f)){Text("Tozalash")}
+      TextButton(onClick=close, modifier=Modifier.weight(1f)){Text("Bekor qilish", color=MaterialTheme.colorScheme.onSurfaceVariant)}
+     }
+    }
    }
   }
  }

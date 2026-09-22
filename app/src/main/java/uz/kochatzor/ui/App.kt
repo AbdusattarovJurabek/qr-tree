@@ -154,18 +154,18 @@ import java.time.format.DateTimeFormatter
      .clip(heroShape)
      .background(Brush.linearGradient(colors = listOf(Color(0xFF00543B), Color(0xFF0C9163))))
      .border(1.dp, Brush.linearGradient(listOf(Color.White.copy(alpha = 0.45f), Color.White.copy(alpha = 0.04f))), heroShape)
-     .padding(24.dp)
+     .padding(20.dp)
    ) {
     Column {
      Row(verticalAlignment = Alignment.CenterVertically) {
-      Icon(Icons.Outlined.Forest, contentDescription = null, tint = Color(0xFF8AF5C6), modifier = Modifier.size(24.dp))
+      Icon(Icons.Outlined.Forest, contentDescription = null, tint = Color(0xFF8AF5C6), modifier = Modifier.size(22.dp))
       Spacer(Modifier.width(8.dp))
       Text("UMUMIY STATISTIKA", style = MaterialTheme.typography.labelMedium, color = Color(0xFF8AF5C6), fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
      }
-     Spacer(Modifier.height(12.dp))
-     Text("$totalTrees dona", style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.ExtraBold, color = Color.White)
+     Spacer(Modifier.height(10.dp))
+     Text("$totalTrees dona", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.ExtraBold, color = Color.White)
      Text("Ro'yxatga olingan ko'chatlar", style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.8f))
-     Spacer(Modifier.height(16.dp))
+     Spacer(Modifier.height(14.dp))
      Surface(shape = RoundedCornerShape(12.dp), color = Color.White.copy(alpha = 0.15f)) {
       Row(Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
        Icon(Icons.Outlined.Home, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
@@ -180,8 +180,12 @@ import java.time.format.DateTimeFormatter
   item {
    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)){
     listOf("Bugun" to rows.count {it.createdAt>=today.first&&it.createdAt<today.second},"Hafta" to rows.count {it.createdAt>=week.first&&it.createdAt<week.second},"Jami" to rows.size).forEach {(name,n)->
-     GlassCard(modifier = Modifier.weight(1f), shape = RoundedCornerShape(20.dp)) {
-      Column(Modifier.padding(16.dp)){
+     GlassCard(modifier = Modifier.weight(1f).heightIn(min = 84.dp), shape = RoundedCornerShape(20.dp)) {
+      Column(
+       Modifier.fillMaxSize().padding(vertical = 14.dp, horizontal = 8.dp),
+       horizontalAlignment = Alignment.CenterHorizontally,
+       verticalArrangement = Arrangement.Center
+      ){
        Text(n.toString(),style=MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
        Text(name,style=MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
       }
@@ -251,7 +255,7 @@ import java.time.format.DateTimeFormatter
    ){
     Icon(Icons.Outlined.Storage, contentDescription = null, modifier = Modifier.size(18.dp))
     Spacer(Modifier.width(8.dp))
-    Text("Barcha yozuvlarni ko'rish")
+    Text("Barcha xonadonlarni ko'rish")
    }
   }
  }
@@ -334,7 +338,7 @@ import java.time.format.DateTimeFormatter
    }
   }
   
-  item {Info("Saqlash","Barcha yozuvlar shu telefondagi lokal bazada saqlanadi. Muhim ma'lumotlarni doim Excelga yuklab oling.")}
+  item {Info("Saqlash","Barcha ma'lumotlar shu telefondagi lokal bazada saqlanadi. Muhim ma'lumotlarni doim Excelga yuklab oling.")}
   item {Info("Versiya","1.0")}
  }
 }
