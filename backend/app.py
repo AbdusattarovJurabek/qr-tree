@@ -212,26 +212,23 @@ def list_records(
     limit: int = Query(default=200, le=1000),
     offset: int = 0,
 ):
-    query = "SELECT * FROM surveys WHERE isDeleted=0"
+    where = "WHERE isDeleted=0"
     params: list = []
     if user["role"] != "admin":
-        query += " AND districtId = ?"
+        where += " AND districtId = ?"
         params.append(user["districtId"])
     if tree:
-        query += " AND tree = ?"
+        where += " AND tree = ?"
         params.append(tree)
     if q:
-        query += " AND (fio LIKE ? OR phone LIKE ? OR mahalla LIKE ?)"
+        where += " AND (fio LIKE ? OR phone LIKE ? OR mahalla LIKE ?)"
         params += [f"%{q}%", f"%{q}%", f"%{q}%"]
-    query += " ORDER BY updatedAt DESC LIMIT ? OFFSET ?"
-    params += [limit, offset]
     with get_conn() as conn:
-        rows = conn.execute(query, params).fetchall()
-        total = conn.execute(
-            "SELECT COUNT(*) c FROM surveys WHERE isDeleted=0"
-            + (" AND districtId = ?" if user["role"] != "admin" else ""),
-            [user["districtId"]] if user["role"] != "admin" else [],
-        ).fetchone()["c"]
+        rows = conn.execute(
+            f"SELECT * FROM surveys {where} ORDER BY updatedAt DESC LIMIT ? OFFSET ?",
+            params + [limit, offset],
+        ).fetchall()
+        total = conn.execute(f"SELECT COUNT(*) c FROM surveys {where}", params).fetchone()["c"]
     return {"total": total, "rows": [dict(row) for row in rows]}
 
 
