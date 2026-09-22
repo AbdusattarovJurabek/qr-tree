@@ -359,8 +359,40 @@ import java.time.format.DateTimeFormatter
    }
   }
 
+  item { SyncNowCard(vm) }
+
   item {Info("Saqlash","Barcha ma'lumotlar shu telefondagi lokal bazada saqlanadi. Muhim ma'lumotlarni doim Excelga yuklab oling.")}
   item {Info("Versiya","1.0")}
+ }
+}
+
+@Composable fun SyncNowCard(vm: AppViewModel) {
+ val context = LocalContext.current
+ var running by rememberSaveable { mutableStateOf(false) }
+ var workId by remember { mutableStateOf<java.util.UUID?>(null) }
+ workId?.let { id ->
+  val info by uz.kochatzor.data.SyncWorker.observe(context, id).collectAsStateWithLifecycle(initialValue = null)
+  LaunchedEffect(info?.state) {
+   when (info?.state) {
+    androidx.work.WorkInfo.State.SUCCEEDED -> { running = false; workId = null; vm.notify("Sinxronlash tugadi") }
+    androidx.work.WorkInfo.State.FAILED -> { running = false; workId = null; vm.notify("Sinxronlash muvaffaqiyatsiz — login muddati tugagan bo'lishi mumkin") }
+    else -> {}
+   }
+  }
+ }
+ GlassCard(shape = RoundedCornerShape(24.dp), tintAlpha = 0.55f) {
+  Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+   Text("Sinxronlash", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+   Text("Odatda har 30 daqiqada fonda avtomatik ishlaydi. Hozir darhol yubormoqchi bo'lsangiz:", style = MaterialTheme.typography.bodySmall)
+   Button(
+    onClick = { running = true; workId = uz.kochatzor.data.SyncWorker.triggerNow(context) },
+    enabled = !running,
+    modifier = Modifier.fillMaxWidth()
+   ) {
+    if (running) { CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)) }
+    Text(if (running) "Sinxronlanmoqda..." else "Hozir sinxronlash")
+   }
+  }
  }
 }
 
