@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,6 +19,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -35,17 +38,20 @@ import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun App(vm:AppViewModel) {
- var tab by rememberSaveable {mutableIntStateOf(0)};var selected by rememberSaveable {mutableStateOf<String?>(null)};var qr by rememberSaveable {mutableStateOf<String?>(null)}
+ var tab by rememberSaveable {mutableIntStateOf(0)};var selected by rememberSaveable {mutableStateOf<String?>(null)};var qr by rememberSaveable {mutableStateOf<String?>(null)};var showSettings by rememberSaveable {mutableStateOf(false)}
  val all by vm.all.collectAsStateWithLifecycle();val busy by vm.busy.collectAsStateWithLifecycle();val ready by vm.ready.collectAsStateWithLifecycle()
  val snack=remember {SnackbarHostState()};val context=LocalContext.current
  LaunchedEffect(vm) {vm.events.collect {snack.showSnackbar(it)}}
  val file by vm.exportFile.collectAsStateWithLifecycle()
- val saveFile=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(Files.XLSX)) {uri->if(uri!=null) {val f=vm.exportFile.value;if(f!=null)vm.action {withContext(Dispatchers.IO) {context.contentResolver.openOutputStream(uri)?.use {out->f.inputStream().use {it.copyTo(out)}}?:error("Faylga yozib bo‘lmadi")};vm.notify("Excel saqlandi")}}}
- val names=listOf("Asosiy","Xonadon","Baza","Skaner","Sozlamalar")
- val icons=listOf(Icons.Outlined.Home,Icons.Outlined.AddCircle,Icons.AutoMirrored.Outlined.ListAlt,Icons.Outlined.QrCodeScanner,Icons.Outlined.Settings)
- BackHandler(selected!=null||qr!=null) {if(qr!=null)qr=null else selected=null}
- 
+ val saveFile=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(Files.XLSX)) {uri->if(uri!=null) {val f=vm.exportFile.value;if(f!=null)vm.action {withContext(Dispatchers.IO) {context.contentResolver.openOutputStream(uri)?.use {out->f.inputStream().use {it.copyTo(out)}}?:error("Faylga yozib bo‘lmadi")};vm.exportFile.value=null;vm.notify("Excel saqlandi")}}}
+ val names=listOf("Asosiy","Xonadon","Ko'chat","Baza","Skaner")
+ val icons=listOf(Icons.Outlined.Home,Icons.Outlined.AddCircle,Icons.Outlined.Nature,Icons.AutoMirrored.Outlined.ListAlt,Icons.Outlined.QrCodeScanner)
+ fun closeOverlay() {if(qr!=null)qr=null else if(selected!=null)selected=null else showSettings=false}
+ BackHandler(selected!=null||qr!=null||showSettings) {closeOverlay()}
+
+ AppBackground {
  Scaffold(
+  containerColor = Color.Transparent,
   topBar={
    TopAppBar(
     title={
@@ -69,15 +75,22 @@ import java.time.format.DateTimeFormatter
      }
     },
     navigationIcon={
-     if(selected!=null||qr!=null) {
-      IconButton(onClick={if(qr!=null)qr=null else selected=null}){
+     if(selected!=null||qr!=null||showSettings) {
+      IconButton(onClick={closeOverlay()}){
        Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Orqaga")
       }
      }
     },
+    actions={
+     if(selected==null&&qr==null&&!showSettings) {
+      IconButton(onClick={showSettings=true}){
+       Icon(Icons.Outlined.Settings,"Sozlamalar")
+      }
+     }
+    },
     colors = TopAppBarDefaults.topAppBarColors(
-     containerColor = MaterialTheme.colorScheme.surface,
-     scrolledContainerColor = MaterialTheme.colorScheme.surface
+     containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
+     scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
     )
    )
   },
@@ -85,17 +98,17 @@ import java.time.format.DateTimeFormatter
   bottomBar={
    val isKeyboardVisible = WindowInsets.ime.asPaddingValues().calculateBottomPadding() > 0.dp
    if (!isKeyboardVisible) {
-    Surface(tonalElevation = 0.dp, color = MaterialTheme.colorScheme.surface) {
+    Surface(tonalElevation = 0.dp, color = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f)) {
      Column {
-      HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+      HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
       NavigationBar(
-       containerColor = MaterialTheme.colorScheme.surface,
+       containerColor = Color.Transparent,
        tonalElevation = 0.dp
       ) {
        names.forEachIndexed {i,n->
         NavigationBarItem(
          selected=tab==i,
-         onClick={tab=i;selected=null;qr=null},
+         onClick={tab=i;selected=null;qr=null;showSettings=false},
          icon={Icon(icons[i],n)},
          label={Text(n,maxLines=1,style=MaterialTheme.typography.labelSmall, fontWeight = if(tab==i) FontWeight.Bold else FontWeight.Normal)}
         )
@@ -111,17 +124,19 @@ import java.time.format.DateTimeFormatter
    val qs=all.find {it.id==qr}
    val detailGroup=all.filter { "${it.mahallaId}_${it.fio}_${it.phone}" == selected }.takeIf { it.isNotEmpty() }
    when {
+    showSettings -> Settings(vm)
     qs!=null -> QrScreen(qs,vm)
-    detailGroup!=null -> Detail(detailGroup,vm,onEdit={vm.edit(it);selected=null;tab=1},onDelete={if(detailGroup.size<=1) selected=null},onQr={qr=it.id},onAddTree={vm.addTreeToXonadon(detailGroup.first());selected=null;tab=1})
-    tab==0 -> Home(all,onEntry={tab=1},onRecords={tab=2})
-    tab==1 -> Entry(vm,onQr={qr=it.id})
-    tab==2 -> Records(vm,onOpen={selected=it})
-    tab==3 -> Scanner()
-    else -> Settings(vm)
+    detailGroup!=null -> Detail(detailGroup,vm,onEdit={vm.edit(it);selected=null;tab=2},onDelete={if(detailGroup.size<=1) selected=null},onQr={qr=it.id},onAddTree={vm.addTreeToXonadon(detailGroup.first());selected=null;tab=2})
+    tab==0 -> Home(all,onEntry={tab=1},onRecords={tab=3})
+    tab==1 -> XonadonScreen(vm,onGoToTree={tab=2})
+    tab==2 -> KochatScreen(vm,onQr={qr=it.id},onGoToHousehold={tab=1})
+    tab==3 -> Records(vm,onOpen={selected=it})
+    else -> Scanner()
    }
   }
  }
- if(file!=null)AlertDialog(onDismissRequest={vm.exportFile.value=null},title={Text("Excel fayl tayyor")},text={Text(file!!.name)},confirmButton={TextButton(onClick={saveFile.launch(file!!.name)}){Text("Saqlash")}},dismissButton={Row {TextButton(onClick={vm.action {Files.share(context,file!!,Files.XLSX)}}){Text("Ulashish")};TextButton(onClick={vm.exportFile.value=null}){Text("Yopish")}}})
+ if(file!=null)AlertDialog(onDismissRequest={vm.exportFile.value=null},title={Text("Excel fayl tayyor")},text={Text(file!!.name)},confirmButton={TextButton(onClick={saveFile.launch(file!!.name)}){Text("Saqlash")}},dismissButton={Row {TextButton(onClick={vm.action {Files.share(context,file!!,Files.XLSX)};vm.exportFile.value=null}){Text("Ulashish")};TextButton(onClick={vm.exportFile.value=null}){Text("Yopish")}}})
+ }
 }
 
 @Composable fun Home(rows:List<Survey>,onEntry:()->Unit,onRecords:()->Unit) {
@@ -131,51 +146,41 @@ import java.time.format.DateTimeFormatter
 
  LazyColumn(Modifier.fillMaxSize().padding(horizontal=20.dp),verticalArrangement=Arrangement.spacedBy(16.dp),contentPadding=PaddingValues(vertical=20.dp)) {
   item {
-   Card(
-    shape = RoundedCornerShape(28.dp),
-    modifier = Modifier.fillMaxWidth(),
-    colors = CardDefaults.cardColors(containerColor = Color.Unspecified)
+   val heroShape = RoundedCornerShape(32.dp)
+   Box(
+    Modifier
+     .fillMaxWidth()
+     .shadow(28.dp, heroShape, ambientColor = Color(0xFF00543B).copy(alpha = 0.30f), spotColor = Color(0xFF00543B).copy(alpha = 0.40f))
+     .clip(heroShape)
+     .background(Brush.linearGradient(colors = listOf(Color(0xFF00543B), Color(0xFF0C9163))))
+     .border(1.dp, Brush.linearGradient(listOf(Color.White.copy(alpha = 0.45f), Color.White.copy(alpha = 0.04f))), heroShape)
+     .padding(24.dp)
    ) {
-    Box(
-     modifier = Modifier
-      .fillMaxWidth()
-      .background(
-       Brush.linearGradient(
-        colors = listOf(
-         Color(0xFF005238),
-         Color(0xFF007954)
-        )
-       )
-      )
-      .padding(24.dp)
-    ) {
-     Column {
-      Row(verticalAlignment = Alignment.CenterVertically) {
-       Icon(Icons.Outlined.Forest, contentDescription = null, tint = Color(0xFF8AF5C6), modifier = Modifier.size(24.dp))
-       Spacer(Modifier.width(8.dp))
-       Text("UMUMIY STATISTIKA", style = MaterialTheme.typography.labelMedium, color = Color(0xFF8AF5C6), fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-      }
-      Spacer(Modifier.height(12.dp))
-      Text("$totalTrees dona", style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.ExtraBold, color = Color.White)
-      Text("Ro'yxatga olingan ko'chatlar", style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.8f))
-      Spacer(Modifier.height(16.dp))
-      Surface(shape = RoundedCornerShape(12.dp), color = Color.White.copy(alpha = 0.15f)) {
-       Text("  🏡 $uniqueHouseholds ta Xonadon hisobga olingan  ", modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp), style = MaterialTheme.typography.labelMedium, color = Color.White, fontWeight = FontWeight.Bold)
+    Column {
+     Row(verticalAlignment = Alignment.CenterVertically) {
+      Icon(Icons.Outlined.Forest, contentDescription = null, tint = Color(0xFF8AF5C6), modifier = Modifier.size(24.dp))
+      Spacer(Modifier.width(8.dp))
+      Text("UMUMIY STATISTIKA", style = MaterialTheme.typography.labelMedium, color = Color(0xFF8AF5C6), fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+     }
+     Spacer(Modifier.height(12.dp))
+     Text("$totalTrees dona", style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.ExtraBold, color = Color.White)
+     Text("Ro'yxatga olingan ko'chatlar", style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.8f))
+     Spacer(Modifier.height(16.dp))
+     Surface(shape = RoundedCornerShape(12.dp), color = Color.White.copy(alpha = 0.15f)) {
+      Row(Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+       Icon(Icons.Outlined.Home, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+       Spacer(Modifier.width(6.dp))
+       Text("$uniqueHouseholds ta xonadon", style = MaterialTheme.typography.labelMedium, color = Color.White, fontWeight = FontWeight.Bold)
       }
      }
     }
    }
   }
-  
+
   item {
    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)){
     listOf("Bugun" to rows.count {it.createdAt>=today.first&&it.createdAt<today.second},"Hafta" to rows.count {it.createdAt>=week.first&&it.createdAt<week.second},"Jami" to rows.size).forEach {(name,n)->
-     Card(
-      Modifier.weight(1f), 
-      colors = CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface),
-      elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-      shape = RoundedCornerShape(20.dp)
-     ){
+     GlassCard(modifier = Modifier.weight(1f), shape = RoundedCornerShape(20.dp)) {
       Column(Modifier.padding(16.dp)){
        Text(n.toString(),style=MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
        Text(name,style=MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -184,16 +189,17 @@ import java.time.format.DateTimeFormatter
     }
    }
   }
-  
+
   item {
    Button(
     onClick=onEntry,
-    modifier=Modifier.fillMaxWidth().height(56.dp), 
-    shape = RoundedCornerShape(20.dp)
+    modifier=Modifier.fillMaxWidth().heightIn(min = 56.dp),
+    shape = RoundedCornerShape(20.dp),
+    elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp, pressedElevation = 2.dp)
    ){
     Icon(Icons.Outlined.Add, contentDescription = null)
     Spacer(Modifier.width(8.dp))
-    Text("XONADON QO'SHISH", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+    Text("Xonadon qo'shish", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
    }
   }
   
@@ -206,13 +212,13 @@ import java.time.format.DateTimeFormatter
   
   if(rows.isEmpty()) {
    item {
-    Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))) {
+    GlassCard(shape = RoundedCornerShape(20.dp), tintAlpha = 0.45f) {
      Text("Hali ma'lumotlar yo‘q. Avval 'Xonadon qo'shish' bo'limi orqali xonadon va ko'chatlarni kiriting.", Modifier.padding(20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
     }
    }
   } else {
    item {
-    Card(shape = RoundedCornerShape(24.dp), elevation = CardDefaults.cardElevation(2.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+    GlassCard(shape = RoundedCornerShape(24.dp)) {
      Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
       val groupedTrees = rows.groupBy {it.tree}.entries.toList().sortedByDescending { it.value.sumOf { s->s.count } }
       groupedTrees.forEach { entry ->
@@ -240,12 +246,12 @@ import java.time.format.DateTimeFormatter
   item {
    OutlinedButton(
     onClick=onRecords,
-    modifier=Modifier.fillMaxWidth().height(52.dp),
+    modifier=Modifier.fillMaxWidth().heightIn(min = 52.dp),
     shape = RoundedCornerShape(20.dp)
    ){
     Icon(Icons.Outlined.Storage, contentDescription = null, modifier = Modifier.size(18.dp))
     Spacer(Modifier.width(8.dp))
-    Text("Barcha ma’lumotlar bazasini ko'rish")
+    Text("Barcha yozuvlarni ko'rish")
    }
   }
  }
@@ -263,10 +269,7 @@ import java.time.format.DateTimeFormatter
   
   // Theme Selector Card
   item {
-   Card(
-    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    shape = RoundedCornerShape(24.dp)
-   ) {
+   GlassCard(shape = RoundedCornerShape(24.dp), tintAlpha = 0.55f) {
     Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
      Row(verticalAlignment = Alignment.CenterVertically) {
       Icon(Icons.Outlined.Palette, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
@@ -288,7 +291,7 @@ import java.time.format.DateTimeFormatter
         modifier = Modifier.weight(1f),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-         containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface
+         containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 2.dp else 0.dp)
        ) {
@@ -318,9 +321,9 @@ import java.time.format.DateTimeFormatter
   }
   
   item {
-   Card(colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surfaceVariant), shape = RoundedCornerShape(24.dp)) {
+   GlassCard(shape = RoundedCornerShape(24.dp), tintAlpha = 0.55f) {
     Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-     Text("Hududni biriktirish (Doimiy)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+     Text("Doimiy hudud", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
      Text("Siz kiritadigan barcha xonadonlar uchun standart viloyat va tumanni belgilang.", style = MaterialTheme.typography.bodySmall)
      Address(vm, defRegion, defRegionName, defDistrict, defDistrictName, "", showMahalla = false,
         onRegion = { id, name -> vm.setLocation(id, name, 0L, "") }, 

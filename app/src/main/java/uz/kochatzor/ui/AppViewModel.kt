@@ -105,9 +105,12 @@ class AppViewModel(app:Application,private val saved:SavedStateHandle):AndroidVi
    busy.value=true
    try {
     val now=System.currentTimeMillis()
-    val emptyEntry = repo.observe().first().find { it.mahallaId == h.mahallaId && it.fio == h.fio && it.phone == h.phone && it.count == 0 && it.tree.isBlank() }
-    val surveyId = emptyEntry?.id ?: UUID.randomUUID().toString()
-    val s=Survey(surveyId,h.regionId,h.districtId,h.mahallaId,h.region,h.district,h.mahalla,h.fio,h.phone,h.area,tree,variety.trim(),count,planting,source.trim(),payvandtag.trim(),emptyEntry?.createdAt?:now,now,"LOCAL",false,normalize(listOf(h.fio,h.mahalla,h.district,tree,variety).joinToString(" ")))
+    // Editing an existing tree (h.id set via edit()) must update that same row, not create a duplicate.
+    val editing = h.id.takeIf { it.isNotBlank() }?.let { repo.get(it) }
+    val emptyEntry = if (editing==null) repo.observe().first().find { it.mahallaId == h.mahallaId && it.fio == h.fio && it.phone == h.phone && it.count == 0 && it.tree.isBlank() } else null
+    val target = editing ?: emptyEntry
+    val surveyId = target?.id ?: UUID.randomUUID().toString()
+    val s=Survey(surveyId,h.regionId,h.districtId,h.mahallaId,h.region,h.district,h.mahalla,h.fio,h.phone,h.area,tree,variety.trim(),count,planting,source.trim(),payvandtag.trim(),target?.createdAt?:now,now,if(editing!=null)"PENDING" else "LOCAL",false,normalize(listOf(h.fio,h.mahalla,h.district,tree,variety).joinToString(" ")))
     repo.save(s);lastSaved.value=s;notify("Ko‘chat muvaffaqiyatli saqlandi!")
    } finally {busy.value=false}
   }
@@ -117,7 +120,7 @@ class AppViewModel(app:Application,private val saved:SavedStateHandle):AndroidVi
   if(busy.value)return
   busy.value=true
   action { try {
-   val snapshot=repo.observe(if(everything)Filters() else filters.value).first()
+   val snapshot=repo.observe(if(everything)Filters() else filters.value).first().filter { it.tree.isNotBlank() }
    require(snapshot.isNotEmpty()) {"Eksport uchun yozuvlar yo‘q"}
    exportFile.value=withContext(Dispatchers.IO) {
     val dir=File(getApplication<Application>().cacheDir,"exports").apply {mkdirs()}

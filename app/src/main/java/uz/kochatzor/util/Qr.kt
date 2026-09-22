@@ -11,10 +11,13 @@ object Qr {
   require(text.length<=4096) { "QR matni juda uzun" }
   val lines=text.trim().lines()
   val validKeys=setOf("TUMAN","MFY","FIO","KOCHAT","TUR","NAV","PAYVANDTAG","YIL")
-  val pairs=lines.mapNotNull { 
+  val pairs=lines.map {
    val p=it.split('=',limit=2)
-   if (p.size==2 && p[0] in validKeys) p[0] to p[1] else null 
+   require(p.size==2 && p[0] in validKeys) { "Notanish QR format" }
+   p[0] to p[1]
   }
+  require(pairs.isNotEmpty()) { "Bo‘sh QR" }
+  require(pairs.map { it.first }.toSet().size==pairs.size) { "Takrorlangan maydon" }
   return pairs.toMap()
  }
  fun bitmap(text:String,size:Int=768):Bitmap {

@@ -1,9 +1,12 @@
 package uz.kochatzor.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -13,13 +16,60 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import uz.kochatzor.data.*
+
+/** Frosted "glass" surface: translucent tint + soft tinted shadow + hairline light rim, used in place of plain Card across the app. */
+@Composable fun GlassCard(
+ modifier: Modifier = Modifier,
+ shape: Shape = RoundedCornerShape(28.dp),
+ tint: Color = MaterialTheme.colorScheme.surface,
+ tintAlpha: Float = 0.68f,
+ elevation: Dp = 18.dp,
+ onClick: (() -> Unit)? = null,
+ content: @Composable () -> Unit
+) {
+ val glow = MaterialTheme.colorScheme.primary
+ Box(
+  modifier
+   .shadow(elevation, shape, ambientColor = glow.copy(alpha = 0.10f), spotColor = glow.copy(alpha = 0.18f))
+   .clip(shape)
+   .background(tint.copy(alpha = tintAlpha))
+   .border(1.dp, Brush.linearGradient(listOf(Color.White.copy(alpha = 0.65f), Color.White.copy(alpha = 0.06f))), shape)
+   .let { if (onClick != null) it.clickable(onClick = onClick) else it }
+ ) { content() }
+}
+
+/** Soft pastel blobs behind translucent glass content — the light source the glass cards catch. */
+@Composable fun AppBackground(content: @Composable BoxScope.() -> Unit) {
+ val scheme = MaterialTheme.colorScheme
+ Box(Modifier.fillMaxSize().background(scheme.background)) {
+  Box(
+   Modifier.align(Alignment.TopEnd).offset(x = 70.dp, y = (-90).dp).size(260.dp)
+    .background(Brush.radialGradient(listOf(scheme.primaryContainer.copy(alpha = 0.55f), Color.Transparent)), CircleShape)
+  )
+  Box(
+   Modifier.align(Alignment.CenterStart).offset(x = (-130).dp, y = 220.dp).size(240.dp)
+    .background(Brush.radialGradient(listOf(scheme.secondaryContainer.copy(alpha = 0.45f), Color.Transparent)), CircleShape)
+  )
+  Box(
+   Modifier.align(Alignment.BottomEnd).offset(x = 90.dp, y = 140.dp).size(300.dp)
+    .background(Brush.radialGradient(listOf(scheme.tertiaryContainer.copy(alpha = 0.40f), Color.Transparent)), CircleShape)
+  )
+  content()
+ }
+}
 
 @Composable fun Field(label:String,value:String,keyboard:KeyboardType=KeyboardType.Text,onChange:(String)->Unit) {
  val isPhone = keyboard == KeyboardType.Phone
@@ -57,8 +107,8 @@ import uz.kochatzor.data.*
   leadingIcon = { Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
   shape = RoundedCornerShape(16.dp),
   colors = OutlinedTextFieldDefaults.colors(
-   focusedContainerColor = MaterialTheme.colorScheme.surface,
-   unfocusedContainerColor = MaterialTheme.colorScheme.surface
+   focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f),
+   unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)
   ),
   prefix = if(isPhone && value.isEmpty()) { { Text("+998 ") } } else null
  )
@@ -72,7 +122,7 @@ import uz.kochatzor.data.*
   enabled = enabled,
   modifier = Modifier.fillMaxWidth().height(56.dp),
   shape = RoundedCornerShape(16.dp),
-  colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+  colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f))
  ) {
   Row(
    Modifier.fillMaxSize().padding(horizontal = 16.dp),
@@ -168,7 +218,7 @@ import uz.kochatzor.data.*
   enabled = district > 0,
   modifier = Modifier.fillMaxWidth().height(56.dp),
   shape = RoundedCornerShape(16.dp),
-  colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+  colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f))
  ) {
   Row(
    Modifier.fillMaxSize().padding(horizontal = 16.dp),

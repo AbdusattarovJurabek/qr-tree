@@ -53,21 +53,22 @@ Room sxemalari `app/schemas/` ichida eksport qilinadi. Sxema o‘zgartirilganda 
 ZXing Core 3.5.3 UTF-8, xatolarni tuzatish M darajasi va oq chegaralar bilan QR yaratadi. Payload faqat:
 
 ```text
-TUMAN=Quvasoy shahar
-MFY=Soy bo‘yi MFY
 FIO=Kadirov Abduxaxxor Kurbanbayevich
-KOCHAT=Olma - Golden
+TUR=Olma
+NAV=Golden
+PAYVANDTAG=
+YIL=2026
 ```
 
-Telefon, maydon, son, sana, manba, UUID QRga kiritilmaydi. CameraX 1.5.1 va APKga **bundled** ML Kit Barcode Scanning 17.3.0 ishlatiladi; modelni keyin internetdan yuklash talab qilinmaydi. Asos: [ML Kit Android hujjati](https://developers.google.com/ml-kit/vision/barcode-scanning/android).
+Telefon, maydon, son, to‘liq sana, manzil (viloyat/tuman/MFY), manba, UUID QRga kiritilmaydi; faqat ekish yilining o‘zi (YIL) kiritiladi. Parser `TUMAN`/`MFY`/`KOCHAT` kabi eski formatdagi kalitlarni ham o‘qiy oladi (eski chop etilgan QR kodlar bilan moslik uchun), lekin tanilmagan yoki takrorlangan maydon bo‘lsa butun QR rad etiladi. CameraX 1.5.1 va APKga **bundled** ML Kit Barcode Scanning 17.3.0 ishlatiladi; modelni keyin internetdan yuklash talab qilinmaydi. Asos: [ML Kit Android hujjati](https://developers.google.com/ml-kit/vision/barcode-scanning/android).
 
 Android 10+ da MediaStore `Pictures/Kochatzor` va `IS_PENDING` orqali saqlanadi, storage permission so‘ralmaydi. Android 7–9 da faqat galereyaga saqlash bosilganda `WRITE_EXTERNAL_STORAGE` so‘raladi (`maxSdkVersion=28`). Kamera ruxsati faqat skanerda so‘raladi. INTERNET va ACCESS_NETWORK_STATE hatto dependency manifestlaridan ham chiqarib tashlanadi.
 
 ## Excel
 
-Apache POI yoki desktop grafik APIlariga bog‘liqlik yo‘q. Writer `.xlsx` OOXML paketini `ZipOutputStream` bilan yaratadi: workbook, worksheet, styles, drawing va relationship XML fayllari hamda `xl/media/qrN.png` rasmlari. QR oxirgi **L ustunida** `oneCellAnchor` orqali taxminan 100×100 px o‘lchamda ko‘rsatiladi.
+Apache POI yoki desktop grafik APIlariga bog‘liqlik yo‘q. Writer `.xlsx` OOXML paketini `ZipOutputStream` bilan yaratadi: workbook, worksheet, styles, drawing va relationship XML fayllari hamda `xl/media/qrN.png` rasmlari. QR oxirgi **N ustunida** `oneCellAnchor` orqali taxminan 100×100 px o‘lchamda ko‘rsatiladi.
 
-Header qalin, 12 ustun, border, matn o‘rash, mos kengliklar, QR uchun 84 pt qator balandligi, muzlatilgan header va Excel autofilter bor. Son/maydonlar raqamli kataklar, telefon va matnlar inline string: `=` bilan boshlangan matn ham formula bo‘lib bajarilmaydi. Rasmlar ketma-ket yoziladi, barcha bitmaplar bir paytda xotirada saqlanmaydi. Export boshlanganda filtrga mos bazadan snapshot olinadi.
+Header qalin, 14 ustun (shu jumladan Payvandtag), border, matn o‘rash, mos kengliklar, QR uchun 84 pt qator balandligi, muzlatilgan header va Excel autofilter bor. Son/maydonlar raqamli kataklar, telefon va matnlar inline string: `=` bilan boshlangan matn ham formula bo‘lib bajarilmaydi. Rasmlar ketma-ket yoziladi, barcha bitmaplar bir paytda xotirada saqlanmaydi. Export boshlanganda filtrga mos bazadan snapshot olinadi.
 
 ## Keyinchalik serverga ulash
 

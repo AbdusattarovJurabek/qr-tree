@@ -9,16 +9,16 @@ import java.time.*
 import java.util.zip.ZipInputStream
 import javax.xml.parsers.DocumentBuilderFactory
 class CoreTest {
- private fun sample()=Survey("private-id",1,1,1,"Farg‘ona","Quvasoy shahar","Soy bo‘yi MFY","Қодиров Абдухаххор","+998901234567",0.1,"Olma","Golden",20,"2026","Manba",100,200,searchText="")
- @Test fun qrHasExactlyFourFieldsAndUnicode() {
+ private fun sample()=Survey("private-id",1,1,1,"Farg‘ona","Quvasoy shahar","Soy bo‘yi MFY","Қодиров Абдухаххор","+998901234567",0.1,"Olma","Golden",20,"2026","Manba","",100,200,searchText="")
+ @Test fun qrHasCorrectFieldsAndUnicode() {
   val payload=Qr.payload(sample());val p=Qr.parse(payload)
-  assertEquals(setOf("TUMAN","MFY","FIO","KOCHAT"),p.keys)
+  assertEquals(setOf("FIO","TUR","NAV","PAYVANDTAG","YIL"),p.keys)
   assertEquals("Қодиров Абдухаххор",p["FIO"])
-  assertEquals("Olma - Golden",p["KOCHAT"])
-  listOf("private-id","+998901234567","Manba","2026").forEach {assertFalse(payload.contains(it))}
+  assertEquals("Olma",p["TUR"]);assertEquals("Golden",p["NAV"]);assertEquals("2026",p["YIL"])
+  listOf("private-id","+998901234567","Manba","Farg‘ona","Quvasoy shahar","Soy bo‘yi MFY").forEach {assertFalse(payload.contains(it))}
  }
  @Test fun qrRejectsForeignOrDuplicateFields() {
-  listOf("https://google.com", "TUMAN=A\nMFY=B\nFIO=C\nFIO=D", "TUMAN=A\nMFY=B\nFIO=C\nKOCHAT=D\nPHONE=123").forEach {assertTrue(runCatching {Qr.parse(it)}.isFailure)}
+  listOf("https://google.com", "FIO=C\nFIO=D", "FIO=C\nTUR=D\nPHONE=123").forEach {assertTrue(runCatching {Qr.parse(it)}.isFailure)}
  }
  @Test fun calendarBoundariesAndInclusiveCustomEnd() {
   val day=LocalDate.of(2026,9,14);val zone=ZoneId.of("Asia/Tashkent")
@@ -38,7 +38,7 @@ class CoreTest {
   val factory=DocumentBuilderFactory.newInstance().apply {isNamespaceAware=true}
   entries.filterKeys {it.endsWith(".xml")||it.endsWith(".rels")}.forEach {(_,b)->factory.newDocumentBuilder().parse(ByteArrayInputStream(b))}
   val sheet=entries.getValue("xl/worksheets/sheet1.xml").toString(Charsets.UTF_8)
-  assertTrue(sheet.contains("A&amp;B &lt;C&gt;"));assertTrue(sheet.contains("<c r=\"I2\" s=\"1\"><v>20</v></c>"))
+  assertTrue(sheet.contains("A&amp;B &lt;C&gt;"));assertTrue(sheet.contains("<c r=\"K2\" s=\"6\"><v>20</v></c>"))
   val drawing=entries.getValue("xl/drawings/drawing1.xml").toString(Charsets.UTF_8)
   assertTrue(drawing.contains("<xdr:row>1</xdr:row>"));assertTrue(drawing.contains("<xdr:row>2</xdr:row>"));assertTrue(drawing.contains("cx=\"952500\""))
  }

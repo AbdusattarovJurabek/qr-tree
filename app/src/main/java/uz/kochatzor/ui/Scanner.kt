@@ -44,28 +44,28 @@ import java.util.concurrent.atomic.AtomicBoolean
   Text("Ko‘chatzor QR kodini kamera chorchovasiga joylashtiring. Skaner internetsiz ishlaydi.", style=MaterialTheme.typography.bodyMedium, color=MaterialTheme.colorScheme.onSurfaceVariant)
   
   if(error!=null) {
-   Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer), shape = RoundedCornerShape(20.dp)) {
+   GlassCard(shape = RoundedCornerShape(20.dp), tint = MaterialTheme.colorScheme.errorContainer, tintAlpha = 0.8f) {
     Text(error!!, Modifier.padding(16.dp), color=MaterialTheme.colorScheme.onErrorContainer)
    }
   }
   
   if(!granted) {
-   Button(onClick={launcher.launch(Manifest.permission.CAMERA)}, modifier=Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(16.dp)){
+   Button(onClick={launcher.launch(Manifest.permission.CAMERA)}, modifier=Modifier.fillMaxWidth().heightIn(min = 52.dp), shape = RoundedCornerShape(16.dp)){
     Icon(Icons.Outlined.CameraAlt, contentDescription = null)
     Spacer(Modifier.width(8.dp))
     Text("Kameraga ruxsat berish", fontWeight = FontWeight.Bold)
    }
   } else if(raw==null) {
-   Card(shape=RoundedCornerShape(28.dp), modifier=Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(2.dp)) {
+   GlassCard(shape=RoundedCornerShape(28.dp), modifier=Modifier.fillMaxWidth()) {
     CameraPreview(onResult={text->raw=text;error=null},onError={error=it})
    }
   } else {
    val parsed = remember(raw) { runCatching { Qr.parse(raw!!) } }
-   Card(
+   GlassCard(
     modifier = Modifier.fillMaxWidth(),
     shape = RoundedCornerShape(28.dp),
-    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-    elevation = CardDefaults.cardElevation(4.dp)
+    tint = MaterialTheme.colorScheme.primaryContainer,
+    tintAlpha = 0.82f
    ) {
     Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
      Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
@@ -158,13 +158,13 @@ import java.util.concurrent.atomic.AtomicBoolean
    }
    
    Button(
-    onClick={raw=null;error=null}, 
-    modifier=Modifier.fillMaxWidth().height(54.dp),
+    onClick={raw=null;error=null},
+    modifier=Modifier.fillMaxWidth().heightIn(min = 54.dp),
     shape = RoundedCornerShape(16.dp)
    ){
     Icon(Icons.Outlined.QrCodeScanner, contentDescription = null)
     Spacer(Modifier.width(8.dp))
-    Text("QAYTA SKANERLASH 🔄", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+    Text("Qayta skanerlash", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
    }
   }
  }

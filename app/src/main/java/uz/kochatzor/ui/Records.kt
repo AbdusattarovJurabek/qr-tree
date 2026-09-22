@@ -51,7 +51,7 @@ import uz.kochatzor.domain.Filters
   
   // Stats
   item {
-   Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer), shape = MaterialTheme.shapes.large) {
+   GlassCard(shape = MaterialTheme.shapes.large, tint = MaterialTheme.colorScheme.secondaryContainer, tintAlpha = 0.8f) {
     Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
      Column {
       Text("Xonadonlar", style=MaterialTheme.typography.labelMedium)
@@ -93,12 +93,10 @@ import uz.kochatzor.domain.Filters
   
   items(grouped,key={it.first().id}) {g->
    val s = g.first()
-   Card(
-       onClick={onOpen("${s.mahallaId}_${s.fio}_${s.phone}")},
+   GlassCard(
        modifier=Modifier.fillMaxWidth(),
        shape=MaterialTheme.shapes.large,
-       elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-       colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+       onClick={onOpen("${s.mahallaId}_${s.fio}_${s.phone}")}
    ) {
     Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
      Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween, verticalAlignment=Alignment.CenterVertically) {
@@ -145,7 +143,7 @@ import uz.kochatzor.domain.Filters
     Choice("Ko‘chat turi",f.tree,(listOf("Barchasi")+trees).mapIndexed {i,s->i.toLong() to s}){_,s->f=f.copy(tree=if(s=="Barchasi")"" else s)}
     
     Spacer(Modifier.height(8.dp))
-    Button(onClick={if(vm.applyFilters(f))close()},modifier=Modifier.fillMaxWidth().height(50.dp)){Text("QO‘LLASH")}
+    Button(onClick={if(vm.applyFilters(f))close()},modifier=Modifier.fillMaxWidth().heightIn(min = 50.dp)){Text("Qo‘llash", fontWeight = FontWeight.Bold)}
     TextButton(onClick={f=Filters(query=current.query);rn="";dn="";mn=""}, modifier=Modifier.fillMaxWidth()){Text("Filtrlarni tozalash")}
     TextButton(onClick=close, modifier=Modifier.fillMaxWidth()){Text("Bekor qilish", color=MaterialTheme.colorScheme.onSurfaceVariant)}
    }
@@ -158,7 +156,7 @@ import uz.kochatzor.domain.Filters
  var deleting by remember {mutableStateOf<Survey?>(null)}
  LazyColumn(Modifier.fillMaxSize().padding(horizontal=20.dp),contentPadding=PaddingValues(vertical=20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
   item {
-   Card(colors = CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.primaryContainer), shape=MaterialTheme.shapes.extraLarge, modifier=Modifier.fillMaxWidth()) {
+   GlassCard(modifier=Modifier.fillMaxWidth(), shape=MaterialTheme.shapes.extraLarge, tint = MaterialTheme.colorScheme.primaryContainer, tintAlpha = 0.8f) {
     Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
      Text(s.fio,style=MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color=MaterialTheme.colorScheme.onPrimaryContainer)
      Row(verticalAlignment = Alignment.CenterVertically) {
@@ -194,10 +192,10 @@ import uz.kochatzor.domain.Filters
   }
   
   item {
-   Button(onClick=onAddTree, modifier=Modifier.fillMaxWidth().height(54.dp)) {
+   Button(onClick=onAddTree, modifier=Modifier.fillMaxWidth().heightIn(min = 54.dp)) {
     Icon(Icons.Outlined.Add, "")
     Spacer(Modifier.width(8.dp))
-    Text("Shu xonadonga yangi ko'chat qo'shish")
+    Text("Yangi ko'chat qo'shish")
    }
   }
   
@@ -206,7 +204,7 @@ import uz.kochatzor.domain.Filters
   }
   
   items(group, key={it.id}) { tree ->
-   Card(shape=MaterialTheme.shapes.large, elevation = CardDefaults.cardElevation(defaultElevation = 2.dp), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
+   GlassCard(shape=MaterialTheme.shapes.large) {
     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
      Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
       Text(tree.tree, style=MaterialTheme.typography.titleLarge, fontWeight=FontWeight.Bold, color=MaterialTheme.colorScheme.primary)

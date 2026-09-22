@@ -31,7 +31,9 @@ class MainActivity: ComponentActivity() {
     secondaryContainer = Color(0xFFADEDFF),
     onSecondaryContainer = Color(0xFF001F26),
     tertiary = Color(0xFF6A527A),
-    background = Color(0xFFF4FBF6),
+    tertiaryContainer = Color(0xFFF0DBFF),
+    onTertiaryContainer = Color(0xFF2A1533),
+    background = Color(0xFFF8FAF9),
     onBackground = Color(0xFF161D19),
     surface = Color(0xFFFFFFFF),
     onSurface = Color(0xFF161D19),
@@ -40,7 +42,7 @@ class MainActivity: ComponentActivity() {
     outline = Color(0xFF717975),
     outlineVariant = Color(0xFFC1C9C3)
    )
-   
+
    val darkColors = darkColorScheme(
     primary = Color(0xFF6EDBAB),
     onPrimary = Color(0xFF003824),
@@ -50,6 +52,9 @@ class MainActivity: ComponentActivity() {
     onSecondary = Color(0xFF003643),
     secondaryContainer = Color(0xFF004E5C),
     onSecondaryContainer = Color(0xFFADEDFF),
+    tertiary = Color(0xFFD8B4E8),
+    tertiaryContainer = Color(0xFF4A3358),
+    onTertiaryContainer = Color(0xFFF0DBFF),
     background = Color(0xFF0F1512),
     onBackground = Color(0xFFE0E3DE),
     surface = Color(0xFF131B17),

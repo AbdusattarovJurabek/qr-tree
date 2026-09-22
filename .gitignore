@@ -6,6 +6,11 @@ app/build/
 # Local configuration
 local.properties
 
+# Release signing (never commit — losing these blocks all future Play Store updates)
+keystore.properties
+*.jks
+*.keystore
+
 # Android Studio / IntelliJ
 .idea/
 *.iml
