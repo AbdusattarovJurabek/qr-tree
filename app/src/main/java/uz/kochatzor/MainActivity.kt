@@ -63,8 +63,13 @@ class MainActivity: ComponentActivity() {
     onSurfaceVariant = Color(0xFFC1C9C3)
    )
 
-   MaterialTheme(colorScheme = if(dark) darkColors else lightColors) { 
-    App(vm) 
+   MaterialTheme(colorScheme = if(dark) darkColors else lightColors) {
+    val session by (application as KochatzorApp).auth.session.collectAsStateWithLifecycle()
+    if (session == null) {
+     LoginScreen(onLoggedIn = { vm.applySession() })
+    } else {
+     App(vm)
+    }
    }
   } 
  }

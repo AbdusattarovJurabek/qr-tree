@@ -1,6 +1,5 @@
 package uz.kochatzor.data
 
-import android.os.Build
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -23,21 +22,29 @@ fun Survey.toDto() = SurveyDto(
  variety, count, planting, source, payvandtag, createdAt, updatedAt, isDeleted,
 )
 
-data class SyncRequest(val deviceId: String, val records: List<SurveyDto>)
+data class SyncRequest(val records: List<SurveyDto>)
 data class SyncResultItem(val id: String, val updatedAt: Long)
 data class SyncResponse(val results: List<SyncResultItem>)
 
+data class LoginRequest(val username: String, val password: String)
+data class LoginResponse(
+ val token: String, val role: String,
+ val regionId: Long?, val region: String?,
+ val districtId: Long?, val district: String?,
+)
+
 interface KochatzorApi {
+ @POST("api/auth/login")
+ suspend fun login(@Body body: LoginRequest): LoginResponse
+
  @POST("api/sync")
  suspend fun sync(
-  @Header("X-Sync-Key") key: String,
+  @Header("Authorization") bearer: String,
   @Body body: SyncRequest,
  ): SyncResponse
 }
 
 object RemoteApi {
- val deviceId: String by lazy { "android-" + Build.MODEL.replace(" ", "-") + "-" + Build.ID }
-
  val api: KochatzorApi? by lazy {
   val baseUrl = BuildConfig.SYNC_BASE_URL
   if (baseUrl.isBlank()) return@lazy null

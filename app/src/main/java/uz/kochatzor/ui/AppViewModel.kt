@@ -40,10 +40,19 @@ class AppViewModel(app:Application,private val saved:SavedStateHandle):AndroidVi
  val defRegionName=MutableStateFlow(prefs.getString("defRegionName","")?:"")
  val defDistrict=MutableStateFlow(prefs.getLong("defDistrict",0L))
  val defDistrictName=MutableStateFlow(prefs.getString("defDistrictName","")?:"")
- init { 
+ val session=graph.auth.session
+ init {
   action { withContext(Dispatchers.IO) { graph.reference.seed(app) };ready.value=true }
+  applySession()
   if (draft.value.id.isBlank() && draft.value.region == 0L) newDraft()
  }
+ /** Login orqali biriktirilgan tuman doim majburiy manzil bo'lishi kerak — xodim uni o'zgartira olmaydi. */
+ fun applySession() {
+  val s=session.value?:return
+  if (s.districtId>0L) setLocation(s.regionId,s.region,s.districtId,s.district)
+ }
+ val locationLocked get()=session.value?.let {it.districtId>0L}?:false
+ fun logout() { graph.auth.logout() }
  fun notify(text:String) { viewModelScope.launch { messages.send(text) } }
  fun action(block:suspend ()->Unit) { viewModelScope.launch { try { block() } catch(e:CancellationException) { throw e } catch(e:Exception) { notify(e.message?:"Amal bajarilmadi. Qayta urinib ko‘ring.") } } }
  fun update(d:Draft) { draft.value=d;saved["draft"]=d.json();lastSaved.value=null }

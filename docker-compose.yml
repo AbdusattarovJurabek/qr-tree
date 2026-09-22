@@ -2,7 +2,7 @@ services:
   backend:
     build: ./backend
     environment:
-      SYNC_KEY: ${SYNC_KEY:?SYNC_KEY majburiy (.env fayliga qo'shing)}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET majburiy (.env fayliga qo'shing)}
     volumes:
       - db_data:/app/data
     ports:

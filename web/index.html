@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ko'chatzor — boshqaruv paneli</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="toast-area"></div>
+
+    <section id="login-screen">
+      <div class="login-card">
+        <h1>Ko'chatzor</h1>
+        <p class="muted">Boshqaruv paneliga kirish</p>
+        <label for="login-username">Login</label>
+        <input id="login-username" type="text" autocomplete="username" />
+        <label for="login-password">Parol</label>
+        <input id="login-password" type="password" autocomplete="current-password" />
+        <button id="login-btn" type="button">Kirish</button>
+      </div>
+    </section>
+
+    <div id="app-screen" hidden>
+      <header>
+        <div class="header-inner">
+          <div>
+            <h1>Ko'chatzor</h1>
+            <p id="who" class="muted"></p>
+          </div>
+          <button id="logout-btn" type="button" class="btn-secondary">Chiqish</button>
+        </div>
+      </header>
+
+      <main>
+        <section class="toolbar">
+          <input id="search-input" type="text" placeholder="FIO, telefon yoki MFY bo'yicha qidirish..." />
+          <select id="tree-filter">
+            <option value="">Barcha ko'chat turlari</option>
+          </select>
+          <button id="export-btn" type="button" class="btn-primary">Excel yuklab olish</button>
+        </section>
+
+        <p id="count-label" class="muted"></p>
+
+        <div class="table-wrap">
+          <table id="records-table">
+            <thead>
+              <tr>
+                <th>Viloyat</th><th>Tuman</th><th>MFY</th><th>FIO</th><th>Telefon</th>
+                <th>Maydon</th><th>Ko'chat</th><th>Nav</th><th>Soni</th><th>Kiritgan</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="records-body"></tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+
+    <div id="modal-root"></div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

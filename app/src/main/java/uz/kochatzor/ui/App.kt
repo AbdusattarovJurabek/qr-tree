@@ -267,7 +267,8 @@ import java.time.format.DateTimeFormatter
  val defRegionName by vm.defRegionName.collectAsStateWithLifecycle()
  val defDistrict by vm.defDistrict.collectAsStateWithLifecycle()
  val defDistrictName by vm.defDistrictName.collectAsStateWithLifecycle()
- 
+ val session by vm.session.collectAsStateWithLifecycle()
+
  LazyColumn(Modifier.padding(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
   item {Text("Sozlamalar",style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Bold)}
   
@@ -328,16 +329,36 @@ import java.time.format.DateTimeFormatter
    GlassCard(shape = RoundedCornerShape(24.dp), tintAlpha = 0.55f) {
     Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
      Text("Doimiy hudud", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-     Text("Siz kiritadigan barcha xonadonlar uchun standart viloyat va tumanni belgilang.", style = MaterialTheme.typography.bodySmall)
-     Address(vm, defRegion, defRegionName, defDistrict, defDistrictName, "", showMahalla = false,
-        onRegion = { id, name -> vm.setLocation(id, name, 0L, "") }, 
-        onDistrict = { id, name -> vm.setLocation(defRegion, defRegionName, id, name) }, 
-        onMahalla = { _, _ -> }
-     )
+     if (vm.locationLocked) {
+      Text("Bu hudud sizning hisobingizga biriktirilgan, o'zgartirib bo'lmaydi.", style = MaterialTheme.typography.bodySmall)
+      Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)) {
+       Column(Modifier.padding(14.dp)) {
+        Text(defRegionName, fontWeight = FontWeight.Bold)
+        Text(defDistrictName, style = MaterialTheme.typography.bodyMedium)
+       }
+      }
+     } else {
+      Text("Siz kiritadigan barcha xonadonlar uchun standart viloyat va tumanni belgilang.", style = MaterialTheme.typography.bodySmall)
+      Address(vm, defRegion, defRegionName, defDistrict, defDistrictName, "", showMahalla = false,
+         onRegion = { id, name -> vm.setLocation(id, name, 0L, "") },
+         onDistrict = { id, name -> vm.setLocation(defRegion, defRegionName, id, name) },
+         onMahalla = { _, _ -> }
+      )
+     }
     }
    }
   }
-  
+
+  item {
+   GlassCard(shape = RoundedCornerShape(24.dp), tintAlpha = 0.55f) {
+    Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+     Text("Hisob", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+     Text("Kirgan login: ${session?.username ?: "—"}", style = MaterialTheme.typography.bodySmall)
+     OutlinedButton(onClick = { vm.logout() }, modifier = Modifier.fillMaxWidth()) { Text("Chiqish") }
+    }
+   }
+  }
+
   item {Info("Saqlash","Barcha ma'lumotlar shu telefondagi lokal bazada saqlanadi. Muhim ma'lumotlarni doim Excelga yuklab oling.")}
   item {Info("Versiya","1.0")}
  }

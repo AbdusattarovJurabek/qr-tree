@@ -20,8 +20,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
 
  override suspend fun doWork(): Result {
   val api = RemoteApi.api ?: return Result.success() // sync sozlanmagan (baseUrl bo'sh) — jim tugaydi
-  val syncKey = uz.kochatzor.BuildConfig.SYNC_KEY
-  if (syncKey.isBlank()) return Result.success()
+  val token = AuthRepository(applicationContext).token() ?: return Result.success() // hali login qilinmagan
 
   val dao = Databases.surveys(applicationContext).dao()
   val pending = dao.pendingSync()
@@ -29,10 +28,12 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
 
   return try {
    pending.chunked(BATCH_SIZE).forEach { batch ->
-    val response = api.sync(syncKey, SyncRequest(RemoteApi.deviceId, batch.map { it.toDto() }))
+    val response = api.sync("Bearer $token", SyncRequest(batch.map { it.toDto() }))
     response.results.forEach { dao.markSynced(it.id, it.updatedAt) }
    }
    Result.success()
+  } catch (e: retrofit2.HttpException) {
+   if (e.code() == 401) Result.failure() else Result.retry() // token yaroqsiz bo'lsa qayta urinishning foydasi yo'q
   } catch (e: Exception) {
    Log.w(TAG, "Sinxronlash muvaffaqiyatsiz, keyinroq qayta urinadi", e)
    Result.retry()
