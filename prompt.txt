@@ -1,0 +1,101 @@
+================================================================================
+PROMPT: KO'CHATZOR (QRTREE) - ANDROID APPLICATION SPECIFICATION & ARCHITECTURE
+================================================================================
+
+PROJECT OVERVIEW:
+Build an offline-first Android application in Kotlin using Jetpack Compose (Material 3) named "Ko'chatzor" (package: `uz.kochatzor`). The app is designed for registration, management, and offline tracking of households (xonadonlar) and fruit tree plantings across Uzbekistan, featuring Excel export/import, QR code generation/scanning, and direct printer printing.
+
+--------------------------------------------------------------------------------
+1. TECH STACK & DEPENDENCIES
+--------------------------------------------------------------------------------
+- Language: Kotlin 1.9+ / Java 17
+- UI Framework: Jetpack Compose (Material Design 3), Compose BOM, Material Icons Extended
+- Architecture: MVVM + Clean Architecture (`AndroidViewModel`, `StateFlow`, `Coroutines`)
+- Local Database: Room Database (`ReferenceDb` for locations, `SurveyDb` for records) with Room Migrations (v1 -> v2)
+- Pre-seeded Assets: `reference.json` containing 14 regions of Uzbekistan, 198 districts/cities, and 10,034 official MFYs (mahallas).
+- Camera & Scanning: CameraX (`camera-camera2`, `camera-lifecycle`, `camera-view`) + Google ML Kit Barcode Scanning
+- QR Code Generation: ZXing (`com.google.zxing:core:3.5.3`)
+- Printing: `androidx.print:print:1.1.0` (`PrintHelper`) for direct printing of QR stickers
+- Excel Export: Custom OOXML Streaming (`ZipOutputStream`) generating `.xlsx` workbooks with embedded QR PNG images
+
+--------------------------------------------------------------------------------
+2. DATABASE SCHEMAS & ENTITIES
+--------------------------------------------------------------------------------
+- Reference Database (`reference.db`):
+  - `Region(id: Long, name: String)`
+  - `District(id: Long, regionId: Long, name: String)`
+  - `Mahalla(id: Long, districtId: Long, name: String, searchName: String)`
+  - `ReferenceMeta(id: Int, checksum: String)`
+
+- Survey Database (`surveys.db`, version 2):
+  - `Survey`:
+    - `id`: String (UUID PK)
+    - `regionId`: Long, `districtId`: Long, `mahallaId`: Long
+    - `region`: String, `district`: String, `mahalla`: String
+    - `fio`: String, `phone`: String, `area`: Double
+    - `tree`: String, `variety`: String, `count`: Int, `planting`: String, `source`: String
+    - `payvandtag`: String (Rootstock/graft)
+    - `createdAt`: Long, `updatedAt`: Long, `syncStatus`: String, `isDeleted`: Boolean, `searchText`: String
+
+--------------------------------------------------------------------------------
+3. CORE FEATURES & NAVIGATION WORKFLOW
+--------------------------------------------------------------------------------
+Navigation Bar Tabs (5 items, 1-word labels):
+[1. Asosiy] | [2. Xonadon] | [3. Baza] | [4. Skaner] | [5. Sozlamalar]
+
+A. SETTINGS (SOZLAMALAR):
+- Permanent Location Assignment: Select default Region (Viloyat) and District (Tuman) saved in `SharedPreferences`.
+- Theme Switcher Cards: System default (Tizim), Light mode (Yorug' / Kun), Dark mode (To'q / Tun).
+
+B. 2-STEP ENTRY WORKFLOW (XONADON QO'SHISH & KO'CHAT BIRIKTIRISH):
+- Tab 1: "1. Xonadon qo'shish" (Register Household):
+  - Pre-fills Region & District from Settings.
+  - Mahalla choice from paginated search dialog (10,000+ MFYs).
+  - Household Owner F.I.Sh. (Person icon).
+  - Phone Number with formatted `+998 (XX) XXX-XX-XX` transformation.
+  - Land Area in hectares (ga).
+  - Button: "XONADONNI SAQLASH". Saves household entry to Room DB.
+- Tab 2: "2. Ko'chat biriktirish" (Attach Trees to Household):
+  - Household Picker Button: Opens search dialog to select an existing registered household.
+  - Fruit Type dropdown (`trees` list: Olma, Nok, Behi, O'rik, Olxo'ri, Shaftoli, Gilos, Olcha, Xurmo, Yong'oq, Bodom, Pista, Malina, Ejevika, Qulupnay, Golubika, Anor, Zaytun, Anjir, Namatak, Unabi, Do'lana, Limon, Mandarin, Apelsin, Banan, Kivi, Papaya, Uzum, Boshqa).
+  - Variety (Navi).
+  - Payvandtag (Rootstock) - Manual free-text field.
+  - Count (Soni, dona).
+  - Planting Year (Ekilgan yili - dropdown 1990 to current year).
+  - Tree Source (Ko'chat manbasi) choice:
+    1. In-Vitro laboratoriyasi
+    2. Mahalliy ko‘chatchilik xo‘jaliklari
+    3. Xorijiy korxonalar
+    4. Savdo nuqtalari (bozor, do‘kon va boshqa sotuv joylari)
+  - Custom Detail Input Field below source selection for specific company/country/shop details.
+  - Button: "KO'CHATNI BIRIKTIRISH". Saves tree entry to Room DB.
+  - Post-save options: "Shu xonadonga YANA ko'chat qo'shish" allows attaching 2nd, 3rd, 4th, 5th, 6th fruit types to the same household!
+
+C. RECORDS DATABASE (BAZA):
+- Grouped Household Cards: Groups records by Household (`mahallaId + fio + phone`).
+- Card displays: Household F.I.Sh., Mahalla location chip, badge for fruit types count, total tree count.
+- Search Bar (Name, Phone, Mahalla, Tree, Variety) & Filters Dialog (Period, Region, District, Mahalla, Fruit type).
+- Household Detail View:
+  - Header card with Household details + "Shu xonadonga yangi ko'chat qo'shish" button.
+  - List of individual Tree cards with Edit, Delete, QR Code, and Print (🖨️) buttons.
+
+D. QR CODE & SCANNER:
+- QR Payload: Custom 5-line string (`FIO`, `TUR`, `NAV`, `PAYVANDTAG`, `YIL`).
+- Offline CameraX + ML Kit Scanner: Safely parses QR codes with fallback handling for legacy and new formats without crashing.
+
+E. PRINTING (PRINTERDA CHOP ETISH):
+- Uses `PrintHelper(context).printBitmap()` to print high-resolution QR code bitmap stickers directly to connected Wi-Fi/Bluetooth/USB printers or system print services.
+
+F. EXCEL EXPORT (.XLSX):
+- OOXML Streaming Zip export with Emerald Green (`#006C4C`) header styling, white bold text, alternating zebra row striping, center/left cell alignments, and embedded QR code images.
+- Columns: `T/r`, `Viloyat nomi`, `Tuman yoki shahar`, `MFY nomi`, `Xonadon egasi F.I.Sh.`, `Telefon raqami`, `Yer maydoni, ga`, `Ekilgan ko‘chat turi`, `Ko‘chat navi`, `Payvandtag`, `Soni, dona`, `Ekilgan yili`, `Ko‘chat manbasi`, `QR kod`.
+
+--------------------------------------------------------------------------------
+4. UI / UX DESIGN SYSTEM
+--------------------------------------------------------------------------------
+- Material Design 3 Palette: Deep Emerald Green (`#006C4C`), Mint Container (`#8AF5C6`), Obsidian Dark (`#0F1512`).
+- Shapes & Borders: `RoundedCornerShape(24.dp)` / `16.dp` flat borders (`outlineVariant`), no heavy shadows.
+- Window Insets & Soft Keyboard: `android:windowSoftInputMode="adjustResize"`, `.imePadding()`, navigation bar hides automatically while soft keyboard is visible to eliminate bottom bar overlap or keyboard shadows.
+- Typography: Uzbek Latin alphabet (100% Latin, 0% Cyrillic).
+
+================================================================================
