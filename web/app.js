@@ -18,9 +18,30 @@
     modalRoot: document.getElementById("modal-root"),
   };
 
+  function readStoredSession() {
+    try {
+      return {
+        token: sessionStorage.getItem("kochatzor_token") || "",
+        session: JSON.parse(sessionStorage.getItem("kochatzor_session") || "null"),
+      };
+    } catch {
+      return { token: "", session: null };
+    }
+  }
+  function saveStoredSession(token, session) {
+    try {
+      sessionStorage.setItem("kochatzor_token", token);
+      sessionStorage.setItem("kochatzor_session", JSON.stringify(session));
+    } catch {
+      // brauzer xotirasi bloklangan bo'lishi mumkin (masalan maxfiy rejim) —
+      // sessiya shu sahifa yangilanmaguncha xotirada saqlanadi, login davom etadi.
+    }
+  }
+
+  const stored = readStoredSession();
   const state = {
-    token: sessionStorage.getItem("kochatzor_token") || "",
-    session: JSON.parse(sessionStorage.getItem("kochatzor_session") || "null"),
+    token: stored.token,
+    session: stored.session,
     rows: [],
     searchTimer: null,
   };
@@ -199,8 +220,12 @@
   function logout() {
     state.token = "";
     state.session = null;
-    sessionStorage.removeItem("kochatzor_token");
-    sessionStorage.removeItem("kochatzor_session");
+    try {
+      sessionStorage.removeItem("kochatzor_token");
+      sessionStorage.removeItem("kochatzor_session");
+    } catch {
+      // xotira bloklangan bo'lsa ham chiqishning o'zi davom etadi
+    }
     el.appScreen.hidden = true;
     el.loginScreen.hidden = false;
     el.loginPassword.value = "";
@@ -208,7 +233,7 @@
 
   el.loginBtn.addEventListener("click", async () => {
     const username = el.loginUsername.value.trim();
-    const password = el.loginPassword.value;
+    const password = el.loginPassword.value.trim();
     if (!username || !password) return;
     try {
       const res = await fetch("/api/auth/login", {
@@ -220,8 +245,7 @@
       const data = await res.json();
       state.token = data.token;
       state.session = data;
-      sessionStorage.setItem("kochatzor_token", state.token);
-      sessionStorage.setItem("kochatzor_session", JSON.stringify(data));
+      saveStoredSession(state.token, data);
       showApp();
     } catch (err) {
       showToast("error", err.message);
