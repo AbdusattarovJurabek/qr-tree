@@ -43,6 +43,40 @@
     }
   }
 
+  const RECORDS_CACHE_PREFIX = "kochatzor_records_cache_";
+  function recordsCacheKey(username) {
+    return RECORDS_CACHE_PREFIX + username;
+  }
+  function loadCachedRecords(username) {
+    try {
+      const raw = localStorage.getItem(recordsCacheKey(username));
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+  function saveCachedRecords(username, rows) {
+    try {
+      localStorage.setItem(recordsCacheKey(username), JSON.stringify(rows));
+    } catch {
+      // qurilma xotirasi to'lgan yoki bloklangan bo'lishi mumkin — keshlash o'tkazib yuboriladi.
+    }
+  }
+  // Boshqa login bilan kirilganda avvalgi hisobning keshlangan ma'lumotlari
+  // qurilmada qolib ketmasligi (va ko'rinmasligi) uchun tozalanadi.
+  function purgeOtherRecordsCaches(currentUsername) {
+    try {
+      const keep = recordsCacheKey(currentUsername);
+      for (const key of Object.keys(localStorage)) {
+        if (key.startsWith(RECORDS_CACHE_PREFIX) && key !== keep) {
+          localStorage.removeItem(key);
+        }
+      }
+    } catch {
+      // xotira o'qib bo'lmasa, tozalashni o'tkazib yuboramiz
+    }
+  }
+
   const stored = readStoredSession();
   const state = {
     token: stored.token,
@@ -187,10 +221,16 @@
   async function loadRecords() {
     const gen = state.sessionGeneration;
     try {
-      const res = await api(`/api/records?${currentFilterParams().toString()}`);
+      const params = currentFilterParams();
+      const res = await api(`/api/records?${params.toString()}`);
       const data = await res.json();
       if (gen !== state.sessionGeneration) return; // stale response from a previous/switched session
       state.rows = data.rows;
+      if ([...params.keys()].length === 0 && state.session?.username) {
+        // Filtrsiz to'liq ro'yxatni shu hisob uchun qurilmada keshlab qo'yamiz
+        // (aloqa sekin/uzilgan bo'lsa ham tezroq ko'rinishi uchun).
+        saveCachedRecords(state.session.username, data.rows);
+      }
       renderRows();
     } catch (err) {
       if (gen !== state.sessionGeneration) return;
@@ -361,8 +401,14 @@
     el.mahallaFilter.value = "";
     el.treeFilter.value = "";
     el.yearFilter.value = "";
-    state.rows = [];
-    renderRows();
+    const username = state.session?.username;
+    if (username) {
+      purgeOtherRecordsCaches(username);
+      state.rows = loadCachedRecords(username) || [];
+    } else {
+      state.rows = [];
+    }
+    renderRows(); // qurilmadagi keshdan darhol ko'rsatiladi, keyin tarmoqdan yangilanadi
     renderWho();
     loadFacets();
     loadRecords();

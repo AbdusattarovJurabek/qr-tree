@@ -117,6 +117,7 @@ def login(payload: LoginRequest):
         raise HTTPException(status_code=401, detail="Login yoki parol noto'g'ri")
     return {
         "token": make_token(row),
+        "username": row["username"],
         "role": row["role"],
         "regionId": row["region_id"],
         "districtId": row["district_id"],
