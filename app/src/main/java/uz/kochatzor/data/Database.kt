@@ -19,7 +19,8 @@ data class Survey(
  val count: Int, val planting: String, val source: String,
  val payvandtag: String = "",
  val createdAt: Long, val updatedAt: Long, val syncStatus: String = "LOCAL", val isDeleted: Boolean = false,
- val searchText: String
+ val searchText: String,
+ val latitude: Double = 0.0, val longitude: Double = 0.0
 )
 @Dao interface ReferenceDao {
  @Query("SELECT checksum FROM reference_meta WHERE id=1") suspend fun checksum(): String?
@@ -60,7 +61,7 @@ abstract class ReferenceDb: RoomDatabase() {
   dao().setMeta(ReferenceMeta(checksum=checksum))
  }
 }
-@Database(entities=[Survey::class],version=2,exportSchema=true)
+@Database(entities=[Survey::class],version=3,exportSchema=true)
 abstract class SurveyDb: RoomDatabase() { abstract fun dao(): SurveyDao }
 
 val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
@@ -69,9 +70,16 @@ val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
  }
 }
 
+val MIGRATION_2_3 = object : androidx.room.migration.Migration(2, 3) {
+ override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+  db.execSQL("ALTER TABLE surveys ADD COLUMN latitude REAL NOT NULL DEFAULT 0.0")
+  db.execSQL("ALTER TABLE surveys ADD COLUMN longitude REAL NOT NULL DEFAULT 0.0")
+ }
+}
+
 // Register explicit versioned migrations here when the schema changes. Never destroy survey data.
 object Databases {
- val migrations: Array<androidx.room.migration.Migration> = arrayOf(MIGRATION_1_2)
+ val migrations: Array<androidx.room.migration.Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
  fun reference(c: Context)=Room.databaseBuilder(c,ReferenceDb::class.java,"reference.db").addMigrations(*migrations).build()
  fun surveys(c: Context)=Room.databaseBuilder(c,SurveyDb::class.java,"surveys.db").addMigrations(*migrations).fallbackToDestructiveMigration(true).build()
 }

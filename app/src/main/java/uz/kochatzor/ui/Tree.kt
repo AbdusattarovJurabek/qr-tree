@@ -57,7 +57,8 @@ import uz.kochatzor.data.normalize
   fio = d.fio, phone = d.phone, area = d.area.toDoubleOrNull() ?: 0.0,
   tree = d.tree, variety = d.variety, count = d.count.toIntOrNull() ?: 0,
   planting = d.planting, source = d.source, payvandtag = d.payvandtag,
-  createdAt = 0, updatedAt = 0, searchText = ""
+  createdAt = 0, updatedAt = 0, searchText = "",
+  latitude = d.latitude, longitude = d.longitude
  )
 
  LazyColumn(

@@ -102,6 +102,7 @@
         <td>${escapeHtml(r.tree)}</td>
         <td>${escapeHtml(r.variety)}</td>
         <td>${escapeHtml(r.count)}</td>
+        <td>${r.latitude || r.longitude ? `<a href="https://maps.google.com/?q=${r.latitude},${r.longitude}" target="_blank" rel="noopener">🗺️ xarita</a>` : "—"}</td>
         <td>${escapeHtml(r.submittedBy)}</td>
         <td class="row-actions">
           ${canEdit ? `<button data-edit="${r.id}">✎</button><button data-del="${r.id}" class="del">🗑</button>` : ""}
@@ -153,6 +154,8 @@
           <label>Ko'chat turi</label><input id="edit-tree" value="${escapeHtml(row.tree)}" />
           <label>Nav</label><input id="edit-variety" value="${escapeHtml(row.variety)}" />
           <label>Soni</label><input id="edit-count" type="number" value="${row.count}" />
+          <label>Kenglik (latitude)</label><input id="edit-lat" type="number" step="0.000001" value="${row.latitude || ""}" />
+          <label>Uzunlik (longitude)</label><input id="edit-lng" type="number" step="0.000001" value="${row.longitude || ""}" />
           <div class="modal-actions">
             <button class="btn-secondary" id="edit-cancel">Bekor qilish</button>
             <button class="btn-primary" id="edit-save">Saqlash</button>
@@ -172,6 +175,8 @@
             tree: document.getElementById("edit-tree").value,
             variety: document.getElementById("edit-variety").value,
             count: Number(document.getElementById("edit-count").value),
+            latitude: Number(document.getElementById("edit-lat").value) || 0,
+            longitude: Number(document.getElementById("edit-lng").value) || 0,
           }),
         });
         closeModal();

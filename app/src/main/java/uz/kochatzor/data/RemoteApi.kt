@@ -15,11 +15,13 @@ data class SurveyDto(
  val fio: String, val phone: String, val area: Double, val tree: String, val variety: String,
  val count: Int, val planting: String, val source: String, val payvandtag: String,
  val createdAt: Long, val updatedAt: Long, val isDeleted: Boolean,
+ val latitude: Double, val longitude: Double,
 )
 
 fun Survey.toDto() = SurveyDto(
  id, regionId, districtId, mahallaId, region, district, mahalla, fio, phone, area, tree,
  variety, count, planting, source, payvandtag, createdAt, updatedAt, isDeleted,
+ latitude, longitude,
 )
 
 data class SyncRequest(val records: List<SurveyDto>)

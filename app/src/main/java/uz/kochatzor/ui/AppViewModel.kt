@@ -14,9 +14,9 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 import java.io.File
 
-data class Draft(val id:String="",val region:Long=0,val regionName:String="",val district:Long=0,val districtName:String="",val mahalla:Long=0,val mahallaName:String="",val fio:String="",val phone:String="",val area:String="",val tree:String="",val variety:String="",val count:String="",val planting:String="",val source:String="",val payvandtag:String="") {
- fun json()=JSONObject().apply { put("id",id);put("region",region);put("regionName",regionName);put("district",district);put("districtName",districtName);put("mahalla",mahalla);put("mahallaName",mahallaName);put("fio",fio);put("phone",phone);put("area",area);put("tree",tree);put("variety",variety);put("count",count);put("planting",planting);put("source",source);put("payvandtag",payvandtag) }.toString()
- companion object { fun read(s:String):Draft { val j=JSONObject(s);return Draft(j.optString("id"),j.optLong("region"),j.optString("regionName"),j.optLong("district"),j.optString("districtName"),j.optLong("mahalla"),j.optString("mahallaName"),j.optString("fio"),j.optString("phone"),j.optString("area"),j.optString("tree"),j.optString("variety"),j.optString("count"),j.optString("planting"),j.optString("source"),j.optString("payvandtag")) } }
+data class Draft(val id:String="",val region:Long=0,val regionName:String="",val district:Long=0,val districtName:String="",val mahalla:Long=0,val mahallaName:String="",val fio:String="",val phone:String="",val area:String="",val tree:String="",val variety:String="",val count:String="",val planting:String="",val source:String="",val payvandtag:String="",val latitude:Double=0.0,val longitude:Double=0.0) {
+ fun json()=JSONObject().apply { put("id",id);put("region",region);put("regionName",regionName);put("district",district);put("districtName",districtName);put("mahalla",mahalla);put("mahallaName",mahallaName);put("fio",fio);put("phone",phone);put("area",area);put("tree",tree);put("variety",variety);put("count",count);put("planting",planting);put("source",source);put("payvandtag",payvandtag);put("latitude",latitude);put("longitude",longitude) }.toString()
+ companion object { fun read(s:String):Draft { val j=JSONObject(s);return Draft(j.optString("id"),j.optLong("region"),j.optString("regionName"),j.optLong("district"),j.optString("districtName"),j.optLong("mahalla"),j.optString("mahallaName"),j.optString("fio"),j.optString("phone"),j.optString("area"),j.optString("tree"),j.optString("variety"),j.optString("count"),j.optString("planting"),j.optString("source"),j.optString("payvandtag"),j.optDouble("latitude",0.0),j.optDouble("longitude",0.0)) } }
 }
 val trees=listOf("Olma","Nok","Behi","O‘rik","Olxo‘ri","Shaftoli","Gilos","Olcha","Xurmo","Yong‘oq","Bodom","Pista","Malina","Ejevika","Qulupnay","Golubika","Anor","Zaytun","Anjir","Namatak","Unabi","Do‘lana","Limon","Mandarin","Apelsin","Banan","Kivi","Papaya","Uzum","Boshqa")
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -58,7 +58,7 @@ class AppViewModel(app:Application,private val saved:SavedStateHandle):AndroidVi
  fun update(d:Draft) { draft.value=d;saved["draft"]=d.json();lastSaved.value=null }
  fun newDraft() { update(Draft(region=defRegion.value,regionName=defRegionName.value,district=defDistrict.value,districtName=defDistrictName.value)) }
  fun addTreeToSameOwner() { val d=draft.value;update(Draft(region=d.region,regionName=d.regionName,district=d.district,districtName=d.districtName,mahalla=d.mahalla,mahallaName=d.mahallaName,fio=d.fio,phone=d.phone,area=d.area)) }
- fun addTreeToXonadon(s: Survey) { update(Draft(region=s.regionId,regionName=s.region,district=s.districtId,districtName=s.district,mahalla=s.mahallaId,mahallaName=s.mahalla,fio=s.fio,phone=s.phone,area=s.area.toString())) }
+ fun addTreeToXonadon(s: Survey) { update(Draft(region=s.regionId,regionName=s.region,district=s.districtId,districtName=s.district,mahalla=s.mahallaId,mahallaName=s.mahalla,fio=s.fio,phone=s.phone,area=s.area.toString(),latitude=s.latitude,longitude=s.longitude)) }
  fun setLocation(rId:Long,rName:String,dId:Long,dName:String) { 
   defRegion.value=rId;defRegionName.value=rName;defDistrict.value=dId;defDistrictName.value=dName
   prefs.edit().putLong("defRegion",rId).putString("defRegionName",rName).putLong("defDistrict",dId).putString("defDistrictName",dName).apply()
@@ -66,7 +66,7 @@ class AppViewModel(app:Application,private val saved:SavedStateHandle):AndroidVi
  }
  fun setTheme(s:String) {theme.value=s;prefs.edit().putString("theme",s).apply()}
  fun applyFilters(f:Filters):Boolean=try { f.range();filters.value=f;true } catch(e:Exception) {notify("Sanalarni YYYY-MM-DD shaklida to‘g‘ri kiriting");false}
- fun edit(s:Survey) { update(Draft(s.id,s.regionId,s.region,s.districtId,s.district,s.mahallaId,s.mahalla,s.fio,s.phone,s.area.toString(),s.tree,s.variety,s.count.toString(),s.planting,s.source,s.payvandtag)) }
+ fun edit(s:Survey) { update(Draft(s.id,s.regionId,s.region,s.districtId,s.district,s.mahallaId,s.mahalla,s.fio,s.phone,s.area.toString(),s.tree,s.variety,s.count.toString(),s.planting,s.source,s.payvandtag,s.latitude,s.longitude)) }
  fun save() {
   if(busy.value)return
   val d=draft.value
@@ -83,7 +83,7 @@ class AppViewModel(app:Application,private val saved:SavedStateHandle):AndroidVi
    try {
     val old=if(d.id.isNotEmpty())repo.get(d.id) else null
     val now=System.currentTimeMillis()
-    val s=Survey(old?.id?:UUID.randomUUID().toString(),d.region,d.district,d.mahalla,d.regionName,d.districtName,d.mahallaName,d.fio.trim(),d.phone.trim(),area,d.tree,d.variety.trim(),count,d.planting,d.source.trim(),d.payvandtag.trim(),old?.createdAt?:now,now,if(old==null)"LOCAL" else "PENDING",false,normalize(listOf(d.fio,d.mahallaName,d.districtName,d.tree,d.variety).joinToString(" ")))
+    val s=Survey(old?.id?:UUID.randomUUID().toString(),d.region,d.district,d.mahalla,d.regionName,d.districtName,d.mahallaName,d.fio.trim(),d.phone.trim(),area,d.tree,d.variety.trim(),count,d.planting,d.source.trim(),d.payvandtag.trim(),old?.createdAt?:now,now,if(old==null)"LOCAL" else "PENDING",false,normalize(listOf(d.fio,d.mahallaName,d.districtName,d.tree,d.variety).joinToString(" ")),old?.latitude?:d.latitude,old?.longitude?:d.longitude)
     repo.save(s);update(d.copy(id=s.id));lastSaved.value=s;notify("Ma’lumot saqlandi")
    } finally {busy.value=false}
   }
@@ -100,7 +100,7 @@ class AppViewModel(app:Application,private val saved:SavedStateHandle):AndroidVi
    busy.value=true
    try {
     val now=System.currentTimeMillis()
-    val s=Survey(UUID.randomUUID().toString(),d.region,d.district,d.mahalla,d.regionName,d.districtName,d.mahallaName,d.fio.trim(),d.phone.trim(),area,"","",0,"","","",now,now,"LOCAL",false,normalize(listOf(d.fio,d.mahallaName,d.districtName).joinToString(" ")))
+    val s=Survey(UUID.randomUUID().toString(),d.region,d.district,d.mahalla,d.regionName,d.districtName,d.mahallaName,d.fio.trim(),d.phone.trim(),area,"","",0,"","","",now,now,"LOCAL",false,normalize(listOf(d.fio,d.mahallaName,d.districtName).joinToString(" ")),d.latitude,d.longitude)
     repo.save(s);lastSaved.value=s;notify("Xonadon muvaffaqiyatli saqlandi!")
    } finally {busy.value=false}
   }
@@ -119,7 +119,7 @@ class AppViewModel(app:Application,private val saved:SavedStateHandle):AndroidVi
     val emptyEntry = if (editing==null) repo.observe().first().find { it.mahallaId == h.mahallaId && it.fio == h.fio && it.phone == h.phone && it.count == 0 && it.tree.isBlank() } else null
     val target = editing ?: emptyEntry
     val surveyId = target?.id ?: UUID.randomUUID().toString()
-    val s=Survey(surveyId,h.regionId,h.districtId,h.mahallaId,h.region,h.district,h.mahalla,h.fio,h.phone,h.area,tree,variety.trim(),count,planting,source.trim(),payvandtag.trim(),target?.createdAt?:now,now,if(editing!=null)"PENDING" else "LOCAL",false,normalize(listOf(h.fio,h.mahalla,h.district,tree,variety).joinToString(" ")))
+    val s=Survey(surveyId,h.regionId,h.districtId,h.mahallaId,h.region,h.district,h.mahalla,h.fio,h.phone,h.area,tree,variety.trim(),count,planting,source.trim(),payvandtag.trim(),target?.createdAt?:now,now,if(editing!=null)"PENDING" else "LOCAL",false,normalize(listOf(h.fio,h.mahalla,h.district,tree,variety).joinToString(" ")),h.latitude,h.longitude)
     repo.save(s);lastSaved.value=s;notify("Ko‘chat muvaffaqiyatli saqlandi!")
    } finally {busy.value=false}
   }

@@ -62,6 +62,10 @@ def init_db():
             )
             """
         )
+        existing_cols = {row["name"] for row in conn.execute("PRAGMA table_info(surveys)")}
+        for col in ("latitude", "longitude"):
+            if col not in existing_cols:
+                conn.execute(f"ALTER TABLE surveys ADD COLUMN {col} REAL NOT NULL DEFAULT 0")
 
 
 init_db()
@@ -147,6 +151,8 @@ class SurveyIn(BaseModel):
     createdAt: int
     updatedAt: int
     isDeleted: bool = False
+    latitude: float = 0.0
+    longitude: float = 0.0
 
 
 class SyncRequest(BaseModel):
@@ -175,10 +181,12 @@ def sync(payload: SyncRequest, user: dict = Depends(current_user)):
                 """
                 INSERT INTO surveys (id, regionId, districtId, mahallaId, region, district,
                     mahalla, fio, phone, area, tree, variety, count, planting, source,
-                    payvandtag, createdAt, updatedAt, isDeleted, submittedBy, syncedAt)
+                    payvandtag, createdAt, updatedAt, isDeleted, submittedBy, syncedAt,
+                    latitude, longitude)
                 VALUES (:id, :regionId, :districtId, :mahallaId, :region, :district,
                     :mahalla, :fio, :phone, :area, :tree, :variety, :count, :planting, :source,
-                    :payvandtag, :createdAt, :updatedAt, :isDeleted, :submittedBy, :syncedAt)
+                    :payvandtag, :createdAt, :updatedAt, :isDeleted, :submittedBy, :syncedAt,
+                    :latitude, :longitude)
                 ON CONFLICT(id) DO UPDATE SET
                     regionId=excluded.regionId, districtId=excluded.districtId,
                     mahallaId=excluded.mahallaId, region=excluded.region,
@@ -188,7 +196,8 @@ def sync(payload: SyncRequest, user: dict = Depends(current_user)):
                     source=excluded.source, payvandtag=excluded.payvandtag,
                     createdAt=excluded.createdAt, updatedAt=excluded.updatedAt,
                     isDeleted=excluded.isDeleted, submittedBy=excluded.submittedBy,
-                    syncedAt=excluded.syncedAt
+                    syncedAt=excluded.syncedAt, latitude=excluded.latitude,
+                    longitude=excluded.longitude
                 """,
                 {
                     "id": r.id, "regionId": region_id, "districtId": district_id,
@@ -198,6 +207,7 @@ def sync(payload: SyncRequest, user: dict = Depends(current_user)):
                     "planting": r.planting, "source": r.source, "payvandtag": r.payvandtag,
                     "createdAt": r.createdAt, "updatedAt": r.updatedAt,
                     "isDeleted": int(r.isDeleted), "submittedBy": user["sub"], "syncedAt": now,
+                    "latitude": r.latitude, "longitude": r.longitude,
                 },
             )
             results.append({"id": r.id, "updatedAt": r.updatedAt})
@@ -241,6 +251,8 @@ class SurveyUpdate(BaseModel):
     count: Optional[int] = None
     planting: Optional[str] = None
     payvandtag: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 
 @app.put("/api/records/{record_id}")
@@ -290,13 +302,15 @@ def export_xlsx(user: dict = Depends(current_user)):
     ws.title = "Ko'chatzor"
     headers = [
         "Viloyat", "Tuman", "MFY", "FIO", "Telefon", "Maydon (ga)", "Ko'chat turi",
-        "Nav", "Soni", "Ekilgan sana", "Manba", "Payvandtag", "Kiritgan", "Kiritilgan vaqti",
+        "Nav", "Soni", "Ekilgan sana", "Manba", "Payvandtag", "Kenglik", "Uzunlik",
+        "Kiritgan", "Kiritilgan vaqti",
     ]
     ws.append(headers)
     for r in rows:
         ws.append([
             r["region"], r["district"], r["mahalla"], r["fio"], r["phone"], r["area"],
             r["tree"], r["variety"], r["count"], r["planting"], r["source"], r["payvandtag"],
+            r["latitude"] or None, r["longitude"] or None,
             r["submittedBy"] or "", r["createdAt"],
         ])
 
