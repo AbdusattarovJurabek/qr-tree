@@ -159,6 +159,7 @@
           <td>${escapeHtml(r.tree)}</td>
           <td>${escapeHtml(r.variety)}</td>
           <td>${escapeHtml(r.count)}</td>
+          <td>${escapeHtml(r.planting)}</td>
           <td>${escapeHtml(r.submittedBy)}</td>
           <td class="row-actions">
             ${canEdit ? `<button data-edit="${r.id}">✎</button><button data-del="${r.id}" class="del">🗑</button>` : ""}
