@@ -49,6 +49,7 @@
     session: stored.session,
     rows: [],
     searchTimer: null,
+    sessionGeneration: 0,
   };
 
   function showToast(type, text) {
@@ -148,6 +149,7 @@
   }
 
   async function loadFacets() {
+    const gen = state.sessionGeneration;
     try {
       const params = new URLSearchParams();
       if (el.regionFilter.value) params.set("region", el.regionFilter.value);
@@ -155,6 +157,7 @@
       if (el.mahallaFilter.value) params.set("mahalla", el.mahallaFilter.value);
       const res = await api(`/api/facets?${params.toString()}`);
       const data = await res.json();
+      if (gen !== state.sessionGeneration) return; // stale response from a previous/switched session
       fillSelect(el.mahallaFilter, "Barcha MFY", data.mahallas || []);
       fillSelect(el.treeFilter, "Barcha ko'chat turlari", data.trees || []);
       fillSelect(el.yearFilter, "Barcha yillar", data.years || []);
@@ -165,6 +168,7 @@
         fillSelect(el.districtFilter, "Barcha tumanlar", data.districts || []);
       }
     } catch (err) {
+      if (gen !== state.sessionGeneration) return;
       showToast("error", err.message);
     }
   }
@@ -181,12 +185,15 @@
   }
 
   async function loadRecords() {
+    const gen = state.sessionGeneration;
     try {
       const res = await api(`/api/records?${currentFilterParams().toString()}`);
       const data = await res.json();
+      if (gen !== state.sessionGeneration) return; // stale response from a previous/switched session
       state.rows = data.rows;
       renderRows();
     } catch (err) {
+      if (gen !== state.sessionGeneration) return;
       showToast("error", err.message);
     }
   }
@@ -345,22 +352,34 @@
   }
 
   function showApp() {
+    state.sessionGeneration++;
     el.loginScreen.hidden = true;
     el.appScreen.hidden = false;
+    el.searchInput.value = "";
+    el.regionFilter.value = "";
+    el.districtFilter.value = "";
+    el.mahallaFilter.value = "";
+    el.treeFilter.value = "";
+    el.yearFilter.value = "";
+    state.rows = [];
+    renderRows();
     renderWho();
     loadFacets();
     loadRecords();
   }
 
   function logout() {
+    state.sessionGeneration++;
     state.token = "";
     state.session = null;
+    state.rows = [];
     try {
       sessionStorage.removeItem("kochatzor_token");
       sessionStorage.removeItem("kochatzor_session");
     } catch {
       // xotira bloklangan bo'lsa ham chiqishning o'zi davom etadi
     }
+    el.recordsBody.innerHTML = "";
     el.appScreen.hidden = true;
     el.loginScreen.hidden = false;
     el.loginPassword.value = "";
