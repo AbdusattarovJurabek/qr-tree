@@ -1,26 +1,17 @@
 package uz.kochatzor.ui
 
-import android.Manifest
-import android.content.pm.PackageManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
-import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.launch
-import uz.kochatzor.util.LocationHelper
 
 /**
  * "Xonadon" tab: create a household (owner + address) only.
@@ -80,58 +71,6 @@ import uz.kochatzor.util.LocationHelper
  }
 }
 
-/** GPS koordinatasini olish va ko'rsatish — [HouseholdForm]da ishlatiladi. */
-@Composable private fun LocationField(d: Draft, onCaptured: (Double, Double) -> Unit) {
- val context = LocalContext.current
- val scope = rememberCoroutineScope()
- var loading by remember { mutableStateOf(false) }
- var error by remember { mutableStateOf<String?>(null) }
-
- fun fetch() {
-  loading = true; error = null
-  scope.launch {
-   val loc = LocationHelper.current(context)
-   loading = false
-   if (loc != null) onCaptured(loc.latitude, loc.longitude)
-   else error = "Joylashuvni aniqlab bo'lmadi. GPS yoqilganini tekshiring."
-  }
- }
-
- val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-  if (granted) fetch() else error = "Joylashuvga ruxsat berilmadi."
- }
-
- val hasPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-
- Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-  Text("Xonadon lokatsiyasi (nuqta)", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-  if (d.latitude != 0.0 || d.longitude != 0.0) {
-   Text(
-    "%.6f, %.6f".format(d.latitude, d.longitude),
-    style = MaterialTheme.typography.bodyMedium,
-    color = MaterialTheme.colorScheme.primary,
-   )
-  }
-  if (error != null) Text(error!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-  OutlinedButton(
-   onClick = { if (hasPermission) fetch() else permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION) },
-   enabled = !loading,
-   modifier = Modifier.fillMaxWidth(),
-   shape = RoundedCornerShape(16.dp),
-  ) {
-   if (loading) {
-    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-    Spacer(Modifier.width(8.dp))
-    Text("Aniqlanmoqda…")
-   } else {
-    Icon(Icons.Outlined.LocationOn, null)
-    Spacer(Modifier.width(8.dp))
-    Text(if (d.latitude != 0.0 || d.longitude != 0.0) "Nuqtani qayta olish" else "GPS nuqtasini olish")
-   }
-  }
- }
-}
-
 /** Owner + address fields, used by [XonadonScreen]. */
 @Composable private fun HouseholdForm(vm:AppViewModel, d:Draft, busy:Boolean, ready:Boolean) {
  GlassCard(shape = RoundedCornerShape(24.dp)) {
@@ -141,7 +80,6 @@ import uz.kochatzor.util.LocationHelper
    Field("Xonadon egasining F.I.Sh.",d.fio) { vm.update(d.copy(fio=it)) }
    Field("Telefon raqami",d.phone,KeyboardType.Phone) { vm.update(d.copy(phone=it)) }
    Field("Yer maydoni, ga",d.area,KeyboardType.Decimal) { vm.update(d.copy(area=it)) }
-   LocationField(d, onCaptured = { lat, lng -> vm.update(d.copy(latitude=lat, longitude=lng)) })
 
    Button(
     onClick = { vm.saveHouseholdOnly() },

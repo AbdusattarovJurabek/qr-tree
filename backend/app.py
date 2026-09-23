@@ -284,9 +284,40 @@ def delete_record(record_id: str, user: dict = Depends(require_admin)):
     return {"ok": True}
 
 
+def _qr_payload(fio, tree, variety, payvandtag, planting) -> str:
+    # Bir xil skaner bilan o'qilishi uchun Android ilovadagi Qr.kt bilan aynan bir xil format
+    # (uz.kochatzor.util.Qr.payload): "KEY=value" qatorlari, "\n" bilan ajratilgan.
+    def clean(v) -> str:
+        return str(v if v is not None else "").replace("\n", " ").replace("\r", " ")
+
+    return "\n".join([
+        f"FIO={clean(fio)}",
+        f"TUR={clean(tree)}",
+        f"NAV={clean(variety)}",
+        f"PAYVANDTAG={clean(payvandtag)}",
+        f"YIL={clean(planting)[:4]}",
+    ])
+
+
+def _qr_png_bytes(payload: str) -> bytes:
+    import qrcode
+    from qrcode.constants import ERROR_CORRECT_M
+
+    qr = qrcode.QRCode(error_correction=ERROR_CORRECT_M, box_size=6, border=4)
+    qr.add_data(payload)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
 @app.get("/api/export.xlsx")
 def export_xlsx(user: dict = Depends(current_user)):
     import openpyxl
+    from openpyxl.drawing.image import Image as XLImage
+    from openpyxl.utils import get_column_letter
+    from PIL import Image as PILImage
 
     query = "SELECT * FROM surveys WHERE isDeleted=0"
     params: list = []
@@ -302,17 +333,28 @@ def export_xlsx(user: dict = Depends(current_user)):
     ws.title = "Ko'chatzor"
     headers = [
         "Viloyat", "Tuman", "MFY", "FIO", "Telefon", "Maydon (ga)", "Ko'chat turi",
-        "Nav", "Soni", "Ekilgan sana", "Manba", "Payvandtag", "Kenglik", "Uzunlik",
-        "Kiritgan", "Kiritilgan vaqti",
+        "Nav", "Soni", "Ekilgan sana", "Manba", "Payvandtag", "Kiritgan",
+        "Kiritilgan vaqti", "QR kod",
     ]
     ws.append(headers)
-    for r in rows:
+    qr_col = get_column_letter(len(headers))
+    ws.column_dimensions[qr_col].width = 16
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = f"A1:{qr_col}{len(rows) + 1}"
+
+    for i, r in enumerate(rows, start=2):
         ws.append([
             r["region"], r["district"], r["mahalla"], r["fio"], r["phone"], r["area"],
             r["tree"], r["variety"], r["count"], r["planting"], r["source"], r["payvandtag"],
-            r["latitude"] or None, r["longitude"] or None,
             r["submittedBy"] or "", r["createdAt"],
         ])
+        payload = _qr_payload(r["fio"], r["tree"], r["variety"], r["payvandtag"], r["planting"])
+        png_bytes = _qr_png_bytes(payload)
+        xl_img = XLImage(PILImage.open(BytesIO(png_bytes)))
+        xl_img.width = 90
+        xl_img.height = 90
+        ws.add_image(xl_img, f"{qr_col}{i}")
+        ws.row_dimensions[i].height = 70
 
     buf = BytesIO()
     wb.save(buf)

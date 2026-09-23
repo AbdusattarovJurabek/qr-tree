@@ -24,7 +24,7 @@ object Xlsx {
    z.putNextEntry(ZipEntry("xl/worksheets/sheet1.xml"))
    fun raw(s:String) { z.write(s.toByteArray(Charsets.UTF_8)) }
    raw("""<worksheet xmlns="$ns" xmlns:r="$rel"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>""")
-   listOf(7,22,24,26,34,20,16,20,20,18,14,16,14,14,28,18).forEachIndexed { i,n->raw("""<col min="${i+1}" max="${i+1}" width="$n" customWidth="1"/>""") }; raw("</cols><sheetData>")
+   listOf(7,22,24,26,34,20,16,20,20,18,14,16,28,18).forEachIndexed { i,n->raw("""<col min="${i+1}" max="${i+1}" width="$n" customWidth="1"/>""") }; raw("</cols><sheetData>")
    
    fun rowStyled(n:Int, values:List<Pair<Any, Int>>, isHeader:Boolean=false) {
     raw("""<row r="$n" ht="${if(isHeader) 36 else 80}" customHeight="1">""")
@@ -37,7 +37,7 @@ object Xlsx {
    }
 
    // Header Row (style 1 = Emerald background, White bold text)
-   val headers = listOf("T/r","Viloyat nomi","Tuman yoki shahar","MFY nomi","Xonadon egasi F.I.Sh.","Telefon raqami","Yer maydoni, ga","Ekilgan ko‘chat turi","Ko‘chat navi","Payvandtag","Soni, dona","Ekilgan yili","Ko‘chat manbasi","Kenglik","Uzunlik","QR kod")
+   val headers = listOf("T/r","Viloyat nomi","Tuman yoki shahar","MFY nomi","Xonadon egasi F.I.Sh.","Telefon raqami","Yer maydoni, ga","Ekilgan ko‘chat turi","Ko‘chat navi","Payvandtag","Soni, dona","Ekilgan yili","Ko‘chat manbasi","QR kod")
    rowStyled(1, headers.map { it to 1 }, isHeader = true)
 
    // Data Rows with alternating Zebra striping and alignment
@@ -62,18 +62,16 @@ object Xlsx {
      s.count to boldCenterStyle,
      s.planting to centerStyle,
      s.source to leftStyle,
-     (if (s.latitude != 0.0 || s.longitude != 0.0) s.latitude else "-") to centerStyle,
-     (if (s.latitude != 0.0 || s.longitude != 0.0) s.longitude else "-") to centerStyle,
      "" to centerStyle
     )
     rowStyled(i + 2, rowData, isHeader = false)
    }
 
-   raw("""</sheetData><autoFilter ref="A1:P${rows.size+1}"/><drawing r:id="rId1"/></worksheet>""");z.closeEntry()
+   raw("""</sheetData><autoFilter ref="A1:N${rows.size+1}"/><drawing r:id="rId1"/></worksheet>""");z.closeEntry()
    entry("xl/worksheets/_rels/sheet1.xml.rels","""<Relationships xmlns="$pkg"><Relationship Id="rId1" Type="$rel/drawing" Target="../drawings/drawing1.xml"/></Relationships>""")
    entry("xl/drawings/drawing1.xml",buildString {
     append("""<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="$rel">""")
-    rows.indices.forEach { i->append("""<xdr:oneCellAnchor><xdr:from><xdr:col>15</xdr:col><xdr:colOff>47625</xdr:colOff><xdr:row>${i+1}</xdr:row><xdr:rowOff>47625</xdr:rowOff></xdr:from><xdr:ext cx="952500" cy="952500"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${i+1}" name="QR ${i+1}"/><xdr:cNvPicPr/></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="rId${i+1}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>""") };append("</xdr:wsDr>")
+    rows.indices.forEach { i->append("""<xdr:oneCellAnchor><xdr:from><xdr:col>13</xdr:col><xdr:colOff>47625</xdr:colOff><xdr:row>${i+1}</xdr:row><xdr:rowOff>47625</xdr:rowOff></xdr:from><xdr:ext cx="952500" cy="952500"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${i+1}" name="QR ${i+1}"/><xdr:cNvPicPr/></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="rId${i+1}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>""") };append("</xdr:wsDr>")
    })
    entry("xl/drawings/_rels/drawing1.xml.rels",buildString { append("""<Relationships xmlns="$pkg">"""); rows.indices.forEach { i->append("""<Relationship Id="rId${i+1}" Type="$rel/image" Target="../media/qr${i+1}.png"/>""") };append("</Relationships>") })
    rows.forEachIndexed { i,s->z.putNextEntry(ZipEntry("xl/media/qr${i+1}.png")); z.write(png(s));z.closeEntry() }
