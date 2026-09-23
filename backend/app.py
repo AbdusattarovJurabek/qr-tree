@@ -319,7 +319,9 @@ def export_xlsx(user: dict = Depends(current_user)):
     from openpyxl.utils import get_column_letter
     from PIL import Image as PILImage
 
-    query = "SELECT * FROM surveys WHERE isDeleted=0"
+    # Faqat ko'chat biriktirilgan yozuvlar eksport qilinadi — ko'chatsiz (faqat
+    # xonadon) yozuvlar android ilovaning o'z eksportida ham chiqarilmaydi.
+    query = "SELECT * FROM surveys WHERE isDeleted=0 AND trim(tree) != ''"
     params: list = []
     if user["role"] != "admin":
         query += " AND districtId = ?"
