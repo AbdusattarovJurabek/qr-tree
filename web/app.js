@@ -211,6 +211,7 @@
         </div>
       </div>
     `;
+    document.body.style.overflow = "hidden";
     document.getElementById("edit-cancel").addEventListener("click", closeModal);
     document.getElementById("edit-save").addEventListener("click", async () => {
       try {
@@ -233,7 +234,10 @@
       }
     });
   }
-  function closeModal() { el.modalRoot.innerHTML = ""; }
+  function closeModal() {
+    el.modalRoot.innerHTML = "";
+    document.body.style.overflow = "";
+  }
 
   async function openUsersModal() {
     el.modalRoot.innerHTML = `
@@ -255,6 +259,7 @@
         </div>
       </div>
     `;
+    document.body.style.overflow = "hidden";
     document.getElementById("users-close").addEventListener("click", closeModal);
 
     let allUsers = [];
