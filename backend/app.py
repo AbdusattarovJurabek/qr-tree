@@ -315,9 +315,19 @@ def _qr_png_bytes(payload: str) -> bytes:
 @app.get("/api/export.xlsx")
 def export_xlsx(user: dict = Depends(current_user)):
     import openpyxl
+    from datetime import datetime, timedelta, timezone
     from openpyxl.drawing.image import Image as XLImage
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
     from openpyxl.utils import get_column_letter
     from PIL import Image as PILImage
+
+    TASHKENT = timezone(timedelta(hours=5))
+
+    def to_local_dt(epoch_ms):
+        try:
+            return datetime.fromtimestamp(epoch_ms / 1000, tz=TASHKENT).replace(tzinfo=None)
+        except (TypeError, ValueError, OSError):
+            return None
 
     # Faqat ko'chat biriktirilgan yozuvlar eksport qilinadi — ko'chatsiz (faqat
     # xonadon) yozuvlar android ilovaning o'z eksportida ham chiqarilmaydi.
@@ -338,18 +348,49 @@ def export_xlsx(user: dict = Depends(current_user)):
         "Nav", "Soni", "Ekilgan sana", "Manba", "Payvandtag", "Kiritgan",
         "Kiritilgan vaqti", "QR kod",
     ]
-    ws.append(headers)
-    qr_col = get_column_letter(len(headers))
-    ws.column_dimensions[qr_col].width = 16
+    widths = [20, 18, 22, 24, 15, 12, 16, 16, 9, 13, 20, 14, 14, 17, 14]
+
+    border = Border(*(Side(style="thin", color="D0D7D3") for _ in range(4)))
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill("solid", fgColor="006C4C")
+    header_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    body_align = Alignment(horizontal="left", vertical="center", wrap_text=True)
+    body_align_center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    zebra_fill = PatternFill("solid", fgColor="F2F8F4")
+    CENTER_COLS = {5, 6, 9, 10, 14}  # Telefon, Maydon, Soni, Ekilgan sana, Kiritilgan vaqti (1-based)
+
+    for i, (h, w) in enumerate(zip(headers, widths), start=1):
+        col = get_column_letter(i)
+        ws.column_dimensions[col].width = w
+        cell = ws.cell(row=1, column=i, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_align
+        cell.border = border
+    ws.row_dimensions[1].height = 28
     ws.freeze_panes = "A2"
+    qr_col = get_column_letter(len(headers))
     ws.auto_filter.ref = f"A1:{qr_col}{len(rows) + 1}"
 
     for i, r in enumerate(rows, start=2):
-        ws.append([
+        values = [
             r["region"], r["district"], r["mahalla"], r["fio"], r["phone"], r["area"],
-            r["tree"], r["variety"], r["count"], r["planting"], r["source"], r["payvandtag"],
-            r["submittedBy"] or "", r["createdAt"],
-        ])
+            r["tree"], r["variety"], r["count"], r["planting"], r["source"],
+            r["payvandtag"] or "-", r["submittedBy"] or "", to_local_dt(r["createdAt"]),
+        ]
+        fill = zebra_fill if i % 2 == 0 else None
+        for col_idx, value in enumerate(values, start=1):
+            cell = ws.cell(row=i, column=col_idx, value=value)
+            cell.border = border
+            cell.alignment = body_align_center if col_idx in CENTER_COLS else body_align
+            if fill:
+                cell.fill = fill
+            if col_idx == 14:
+                cell.number_format = "yyyy-mm-dd hh:mm"
+        ws.cell(row=i, column=15).border = border
+        if fill:
+            ws.cell(row=i, column=15).fill = fill
+
         payload = _qr_payload(r["fio"], r["tree"], r["variety"], r["payvandtag"], r["planting"])
         png_bytes = _qr_png_bytes(payload)
         xl_img = XLImage(PILImage.open(BytesIO(png_bytes)))
