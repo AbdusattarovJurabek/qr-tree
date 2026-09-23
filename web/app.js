@@ -10,7 +10,11 @@
     logoutBtn: document.getElementById("logout-btn"),
     who: document.getElementById("who"),
     searchInput: document.getElementById("search-input"),
+    regionFilter: document.getElementById("region-filter"),
+    districtFilter: document.getElementById("district-filter"),
+    mahallaFilter: document.getElementById("mahalla-filter"),
     treeFilter: document.getElementById("tree-filter"),
+    yearFilter: document.getElementById("year-filter"),
     exportBtn: document.getElementById("export-btn"),
     countLabel: document.getElementById("count-label"),
     recordsBody: document.getElementById("records-body"),
@@ -117,24 +121,48 @@
     );
   }
 
-  function updateTreeFilterOptions() {
-    const current = el.treeFilter.value;
-    const trees = [...new Set(state.rows.map((r) => r.tree).filter(Boolean))].sort();
-    el.treeFilter.innerHTML = '<option value="">Barcha ko\'chat turlari</option>' +
-      trees.map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join("");
-    if (trees.includes(current)) el.treeFilter.value = current;
+  function fillSelect(select, placeholder, values) {
+    const current = select.value;
+    select.innerHTML = `<option value="">${placeholder}</option>` +
+      values.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+    if (values.includes(current)) select.value = current;
   }
 
-  async function loadRecords() {
+  async function loadFacets() {
+    try {
+      const res = await api("/api/facets");
+      const data = await res.json();
+      fillSelect(el.mahallaFilter, "Barcha MFY", data.mahallas || []);
+      fillSelect(el.treeFilter, "Barcha ko'chat turlari", data.trees || []);
+      fillSelect(el.yearFilter, "Barcha yillar", data.years || []);
+      if (state.session?.role === "admin") {
+        el.regionFilter.hidden = false;
+        el.districtFilter.hidden = false;
+        fillSelect(el.regionFilter, "Barcha viloyatlar", data.regions || []);
+        fillSelect(el.districtFilter, "Barcha tumanlar", data.districts || []);
+      }
+    } catch (err) {
+      showToast("error", err.message);
+    }
+  }
+
+  function currentFilterParams() {
     const params = new URLSearchParams();
     if (el.searchInput.value.trim()) params.set("q", el.searchInput.value.trim());
     if (el.treeFilter.value) params.set("tree", el.treeFilter.value);
+    if (el.regionFilter.value) params.set("region", el.regionFilter.value);
+    if (el.districtFilter.value) params.set("district", el.districtFilter.value);
+    if (el.mahallaFilter.value) params.set("mahalla", el.mahallaFilter.value);
+    if (el.yearFilter.value) params.set("planting", el.yearFilter.value);
+    return params;
+  }
+
+  async function loadRecords() {
     try {
-      const res = await api(`/api/records?${params.toString()}`);
+      const res = await api(`/api/records?${currentFilterParams().toString()}`);
       const data = await res.json();
       state.rows = data.rows;
       renderRows();
-      updateTreeFilterOptions();
     } catch (err) {
       showToast("error", err.message);
     }
@@ -197,7 +225,7 @@
 
   async function doExport() {
     try {
-      const res = await api("/api/export.xlsx");
+      const res = await api(`/api/export.xlsx?${currentFilterParams().toString()}`);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -214,6 +242,7 @@
     el.loginScreen.hidden = true;
     el.appScreen.hidden = false;
     renderWho();
+    loadFacets();
     loadRecords();
   }
 
@@ -258,6 +287,10 @@
     state.searchTimer = setTimeout(loadRecords, 300);
   });
   el.treeFilter.addEventListener("change", loadRecords);
+  el.yearFilter.addEventListener("change", loadRecords);
+  el.mahallaFilter.addEventListener("change", loadRecords);
+  el.regionFilter.addEventListener("change", () => { el.districtFilter.value = ""; loadRecords(); });
+  el.districtFilter.addEventListener("change", loadRecords);
   el.exportBtn.addEventListener("click", doExport);
 
   if (state.token && state.session) showApp();

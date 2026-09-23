@@ -214,25 +214,82 @@ def sync(payload: SyncRequest, user: dict = Depends(current_user)):
     return {"results": results}
 
 
-@app.get("/api/records")
-def list_records(
-    user: dict = Depends(current_user),
+def _filters_where(
+    user: dict,
     q: Optional[str] = None,
     tree: Optional[str] = None,
-    limit: int = Query(default=200, le=1000),
-    offset: int = 0,
+    region: Optional[str] = None,
+    district: Optional[str] = None,
+    mahalla: Optional[str] = None,
+    planting: Optional[str] = None,
+    extra: str = "",
 ):
-    where = "WHERE isDeleted=0"
+    where = "WHERE isDeleted=0" + extra
     params: list = []
     if user["role"] != "admin":
         where += " AND districtId = ?"
         params.append(user["districtId"])
+    else:
+        # Viloyat/tuman bo'yicha filtrlash faqat adminga kerak — oddiy xodim
+        # allaqachon o'z tumaniga qulflangan.
+        if region:
+            where += " AND region = ?"
+            params.append(region)
+        if district:
+            where += " AND district = ?"
+            params.append(district)
+    if mahalla:
+        where += " AND mahalla = ?"
+        params.append(mahalla)
+    if planting:
+        where += " AND planting = ?"
+        params.append(planting)
     if tree:
         where += " AND tree = ?"
         params.append(tree)
     if q:
         where += " AND (fio LIKE ? OR phone LIKE ? OR mahalla LIKE ?)"
         params += [f"%{q}%", f"%{q}%", f"%{q}%"]
+    return where, params
+
+
+@app.get("/api/facets")
+def facets(user: dict = Depends(current_user)):
+    # Filtr variantlari o'zining joriy tanlovlaridan mustaqil beriladi (masalan
+    # bitta yilni tanlagan bo'lsa ham, boshqa yillar ro'yxatdan tushib qolmasin).
+    base_where = "WHERE isDeleted=0 AND trim(tree) != ''"
+    base_params: list = []
+    if user["role"] != "admin":
+        base_where += " AND districtId = ?"
+        base_params.append(user["districtId"])
+    with get_conn() as conn:
+        def distinct(col: str) -> list:
+            rows = conn.execute(
+                f"SELECT DISTINCT {col} FROM surveys {base_where} AND {col} != '' ORDER BY {col}",
+                base_params,
+            ).fetchall()
+            return [r[0] for r in rows]
+
+        result = {"mahallas": distinct("mahalla"), "years": distinct("planting"), "trees": distinct("tree")}
+        if user["role"] == "admin":
+            result["regions"] = distinct("region")
+            result["districts"] = distinct("district")
+    return result
+
+
+@app.get("/api/records")
+def list_records(
+    user: dict = Depends(current_user),
+    q: Optional[str] = None,
+    tree: Optional[str] = None,
+    region: Optional[str] = None,
+    district: Optional[str] = None,
+    mahalla: Optional[str] = None,
+    planting: Optional[str] = None,
+    limit: int = Query(default=200, le=1000),
+    offset: int = 0,
+):
+    where, params = _filters_where(user, q, tree, region, district, mahalla, planting)
     with get_conn() as conn:
         rows = conn.execute(
             f"SELECT * FROM surveys {where} ORDER BY updatedAt DESC LIMIT ? OFFSET ?",
@@ -313,9 +370,18 @@ def _qr_png_bytes(payload: str) -> bytes:
 
 
 @app.get("/api/export.xlsx")
-def export_xlsx(user: dict = Depends(current_user)):
+def export_xlsx(
+    user: dict = Depends(current_user),
+    q: Optional[str] = None,
+    tree: Optional[str] = None,
+    region: Optional[str] = None,
+    district: Optional[str] = None,
+    mahalla: Optional[str] = None,
+    planting: Optional[str] = None,
+):
     import openpyxl
     from datetime import datetime, timedelta, timezone
+    from itertools import groupby
     from openpyxl.drawing.image import Image as XLImage
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
     from openpyxl.utils import get_column_letter
@@ -331,12 +397,16 @@ def export_xlsx(user: dict = Depends(current_user)):
 
     # Faqat ko'chat biriktirilgan yozuvlar eksport qilinadi — ko'chatsiz (faqat
     # xonadon) yozuvlar android ilovaning o'z eksportida ham chiqarilmaydi.
-    query = "SELECT * FROM surveys WHERE isDeleted=0 AND trim(tree) != ''"
-    params: list = []
-    if user["role"] != "admin":
-        query += " AND districtId = ?"
-        params.append(user["districtId"])
-    query += " ORDER BY region, district, mahalla, createdAt"
+    where, params = _filters_where(
+        user, q=q, tree=tree, region=region, district=district, mahalla=mahalla,
+        planting=planting, extra=" AND trim(tree) != ''",
+    )
+    # mahallaId+fio+phone bo'yicha ketma-ket guruhlanishi uchun (xonadon
+    # ustunlarini merge qilishda qatorlar bir joyda turishi shart).
+    query = (
+        f"SELECT * FROM surveys {where} "
+        "ORDER BY region, district, mahalla, fio, phone, createdAt"
+    )
     with get_conn() as conn:
         rows = conn.execute(query, params).fetchall()
 
@@ -349,6 +419,7 @@ def export_xlsx(user: dict = Depends(current_user)):
         "Kiritilgan vaqti", "QR kod",
     ]
     widths = [20, 18, 22, 24, 15, 12, 16, 16, 9, 13, 20, 14, 14, 17, 14]
+    HOUSEHOLD_COLS = range(1, 7)  # Viloyat..Maydon — bitta xonadon uchun merge qilinadi
 
     border = Border(*(Side(style="thin", color="D0D7D3") for _ in range(4)))
     header_font = Font(bold=True, color="FFFFFF")
@@ -369,35 +440,50 @@ def export_xlsx(user: dict = Depends(current_user)):
         cell.border = border
     ws.row_dimensions[1].height = 28
     ws.freeze_panes = "A2"
-    qr_col = get_column_letter(len(headers))
+    qr_col_idx = len(headers)
+    qr_col = get_column_letter(qr_col_idx)
     ws.auto_filter.ref = f"A1:{qr_col}{len(rows) + 1}"
 
-    for i, r in enumerate(rows, start=2):
-        values = [
-            r["region"], r["district"], r["mahalla"], r["fio"], r["phone"], r["area"],
-            r["tree"], r["variety"], r["count"], r["planting"], r["source"],
-            r["payvandtag"] or "-", r["submittedBy"] or "", to_local_dt(r["createdAt"]),
-        ]
-        fill = zebra_fill if i % 2 == 0 else None
-        for col_idx, value in enumerate(values, start=1):
-            cell = ws.cell(row=i, column=col_idx, value=value)
-            cell.border = border
-            cell.alignment = body_align_center if col_idx in CENTER_COLS else body_align
+    row_i = 2
+    group_key = lambda r: (r["mahallaId"], r["fio"], r["phone"])
+    for group_idx, (_, group_rows) in enumerate(groupby(rows, key=group_key)):
+        group_rows = list(group_rows)
+        fill = zebra_fill if group_idx % 2 == 0 else None
+        start_row = row_i
+        for r in group_rows:
+            household_values = [r["region"], r["district"], r["mahalla"], r["fio"], r["phone"], r["area"]]
+            tree_values = [
+                r["tree"], r["variety"], r["count"], r["planting"], r["source"],
+                r["payvandtag"] or "-", r["submittedBy"] or "", to_local_dt(r["createdAt"]),
+            ]
+            # Xonadon ustunlari faqat guruhning birinchi qatorida yoziladi —
+            # qolganlari merge qilingandan keyin bo'sh qoladi.
+            values = (household_values if row_i == start_row else [None] * 6) + tree_values
+            for col_idx, value in enumerate(values, start=1):
+                cell = ws.cell(row=row_i, column=col_idx, value=value)
+                cell.border = border
+                cell.alignment = body_align_center if col_idx in CENTER_COLS else body_align
+                if fill:
+                    cell.fill = fill
+                if col_idx == 14:
+                    cell.number_format = "yyyy-mm-dd hh:mm"
+            ws.cell(row=row_i, column=qr_col_idx).border = border
             if fill:
-                cell.fill = fill
-            if col_idx == 14:
-                cell.number_format = "yyyy-mm-dd hh:mm"
-        ws.cell(row=i, column=15).border = border
-        if fill:
-            ws.cell(row=i, column=15).fill = fill
+                ws.cell(row=row_i, column=qr_col_idx).fill = fill
 
-        payload = _qr_payload(r["fio"], r["tree"], r["variety"], r["payvandtag"], r["planting"])
-        png_bytes = _qr_png_bytes(payload)
-        xl_img = XLImage(PILImage.open(BytesIO(png_bytes)))
-        xl_img.width = 90
-        xl_img.height = 90
-        ws.add_image(xl_img, f"{qr_col}{i}")
-        ws.row_dimensions[i].height = 70
+            payload = _qr_payload(r["fio"], r["tree"], r["variety"], r["payvandtag"], r["planting"])
+            png_bytes = _qr_png_bytes(payload)
+            xl_img = XLImage(PILImage.open(BytesIO(png_bytes)))
+            xl_img.width = 90
+            xl_img.height = 90
+            ws.add_image(xl_img, f"{qr_col}{row_i}")
+            ws.row_dimensions[row_i].height = 70
+            row_i += 1
+
+        end_row = row_i - 1
+        if end_row > start_row:
+            for col_idx in HOUSEHOLD_COLS:
+                ws.merge_cells(start_row=start_row, start_column=col_idx, end_row=end_row, end_column=col_idx)
 
     buf = BytesIO()
     wb.save(buf)

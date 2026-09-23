@@ -35,8 +35,20 @@
       <main>
         <section class="toolbar">
           <input id="search-input" type="text" placeholder="FIO, telefon yoki MFY bo'yicha qidirish..." />
+          <select id="region-filter" hidden>
+            <option value="">Barcha viloyatlar</option>
+          </select>
+          <select id="district-filter" hidden>
+            <option value="">Barcha tumanlar</option>
+          </select>
+          <select id="mahalla-filter">
+            <option value="">Barcha MFY</option>
+          </select>
           <select id="tree-filter">
             <option value="">Barcha ko'chat turlari</option>
+          </select>
+          <select id="year-filter">
+            <option value="">Barcha yillar</option>
           </select>
           <button id="export-btn" type="button" class="btn-primary">Excel yuklab olish</button>
         </section>
