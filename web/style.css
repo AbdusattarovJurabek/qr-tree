@@ -109,3 +109,9 @@ tbody tr:hover { background: var(--brand-soft); }
   background: var(--bg); color: var(--ink); font-size: 13px;
 }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+.modal-card-wide { max-width: 720px; }
+.users-table-wrap { max-height: 60vh; overflow-y: auto; border: 1px solid var(--line); border-radius: 12px; margin-top: 10px; }
+.users-pw-input { width: 100%; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font-size: 13px; }
+
+td[rowspan] { vertical-align: middle; background: var(--surface); }

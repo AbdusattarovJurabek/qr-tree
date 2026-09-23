@@ -125,6 +125,43 @@ def login(payload: LoginRequest):
     }
 
 
+@app.get("/api/admin/users")
+def list_users(user: dict = Depends(require_admin)):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT username, role, region_name, district_name FROM users "
+            "ORDER BY region_name, district_name, username"
+        ).fetchall()
+    return [
+        {
+            "username": r["username"],
+            "role": r["role"],
+            "region": r["region_name"],
+            "district": r["district_name"],
+        }
+        for r in rows
+    ]
+
+
+class PasswordChange(BaseModel):
+    password: str
+
+
+@app.put("/api/admin/users/{username}/password")
+def change_password(username: str, payload: PasswordChange, user: dict = Depends(require_admin)):
+    if len(payload.password) < 6:
+        raise HTTPException(status_code=400, detail="Parol kamida 6 belgidan iborat bo'lishi kerak")
+    pw_hash = bcrypt.hashpw(payload.password.encode(), bcrypt.gensalt()).decode()
+    with get_conn() as conn:
+        cur = conn.execute(
+            "UPDATE users SET password_hash = ? WHERE username = ?",
+            (pw_hash, username.strip().lower()),
+        )
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Foydalanuvchi topilmadi")
+    return {"ok": True}
+
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
@@ -254,26 +291,51 @@ def _filters_where(
 
 
 @app.get("/api/facets")
-def facets(user: dict = Depends(current_user)):
-    # Filtr variantlari o'zining joriy tanlovlaridan mustaqil beriladi (masalan
-    # bitta yilni tanlagan bo'lsa ham, boshqa yillar ro'yxatdan tushib qolmasin).
+def facets(
+    user: dict = Depends(current_user),
+    region: Optional[str] = None,
+    district: Optional[str] = None,
+    mahalla: Optional[str] = None,
+):
+    # Kaskadli variantlar: viloyat tanlansa tumanlar shu viloyatnikiga, tuman
+    # tanlansa MFY/mevalar/yillar shu tumannikiga qisqaradi va h.k.
     base_where = "WHERE isDeleted=0 AND trim(tree) != ''"
     base_params: list = []
     if user["role"] != "admin":
         base_where += " AND districtId = ?"
         base_params.append(user["districtId"])
-    with get_conn() as conn:
-        def distinct(col: str) -> list:
-            rows = conn.execute(
-                f"SELECT DISTINCT {col} FROM surveys {base_where} AND {col} != '' ORDER BY {col}",
-                base_params,
-            ).fetchall()
-            return [r[0] for r in rows]
 
-        result = {"mahallas": distinct("mahalla"), "years": distinct("planting"), "trees": distinct("tree")}
+    def distinct(col: str, where: str, params: list) -> list:
+        rows = conn.execute(
+            f"SELECT DISTINCT {col} FROM surveys {where} AND {col} != '' ORDER BY {col}",
+            params,
+        ).fetchall()
+        return [r[0] for r in rows]
+
+    with get_conn() as conn:
+        district_where, district_params = base_where, list(base_params)
+        if region:
+            district_where += " AND region = ?"
+            district_params.append(region)
+
+        mahalla_where, mahalla_params = district_where, list(district_params)
+        if district:
+            mahalla_where += " AND district = ?"
+            mahalla_params.append(district)
+
+        scoped_where, scoped_params = mahalla_where, list(mahalla_params)
+        if mahalla:
+            scoped_where += " AND mahalla = ?"
+            scoped_params.append(mahalla)
+
+        result = {
+            "mahallas": distinct("mahalla", mahalla_where, mahalla_params),
+            "trees": distinct("tree", scoped_where, scoped_params),
+            "years": distinct("planting", scoped_where, scoped_params),
+        }
         if user["role"] == "admin":
-            result["regions"] = distinct("region")
-            result["districts"] = distinct("district")
+            result["regions"] = distinct("region", base_where, base_params)
+            result["districts"] = distinct("district", district_where, district_params)
     return result
 
 

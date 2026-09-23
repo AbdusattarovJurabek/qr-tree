@@ -8,6 +8,7 @@
     loginPassword: document.getElementById("login-password"),
     loginBtn: document.getElementById("login-btn"),
     logoutBtn: document.getElementById("logout-btn"),
+    usersBtn: document.getElementById("users-btn"),
     who: document.getElementById("who"),
     searchInput: document.getElementById("search-input"),
     regionFilter: document.getElementById("region-filter"),
@@ -88,30 +89,48 @@
     if (!state.session) return;
     const scope = state.session.role === "admin" ? "Barcha hududlar" : `${state.session.region} — ${state.session.district}`;
     el.who.textContent = `${state.session.role === "admin" ? "Administrator" : "Xodim"} · ${scope}`;
+    el.usersBtn.hidden = state.session.role !== "admin";
+  }
+
+  function groupByHousehold(rows) {
+    const map = new Map();
+    for (const r of rows) {
+      const key = `${r.mahallaId}_${r.fio}_${r.phone}`;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(r);
+    }
+    return [...map.values()];
   }
 
   function renderRows() {
     el.countLabel.textContent = `${state.rows.length} ta yozuv ko'rsatilmoqda`;
     el.recordsBody.innerHTML = "";
     const canEdit = state.session?.role === "admin";
-    for (const r of state.rows) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${escapeHtml(r.region)}</td>
-        <td>${escapeHtml(r.district)}</td>
-        <td>${escapeHtml(r.mahalla)}</td>
-        <td>${escapeHtml(r.fio)}</td>
-        <td>${escapeHtml(r.phone)}</td>
-        <td>${escapeHtml(r.area)}</td>
-        <td>${escapeHtml(r.tree)}</td>
-        <td>${escapeHtml(r.variety)}</td>
-        <td>${escapeHtml(r.count)}</td>
-        <td>${escapeHtml(r.submittedBy)}</td>
-        <td class="row-actions">
-          ${canEdit ? `<button data-edit="${r.id}">✎</button><button data-del="${r.id}" class="del">🗑</button>` : ""}
-        </td>
-      `;
-      el.recordsBody.appendChild(tr);
+    const groups = groupByHousehold(state.rows);
+    for (const group of groups) {
+      const span = group.length;
+      group.forEach((r, idx) => {
+        const tr = document.createElement("tr");
+        const householdCells = idx === 0 ? `
+          <td rowspan="${span}">${escapeHtml(r.region)}</td>
+          <td rowspan="${span}">${escapeHtml(r.district)}</td>
+          <td rowspan="${span}">${escapeHtml(r.mahalla)}</td>
+          <td rowspan="${span}">${escapeHtml(r.fio)}</td>
+          <td rowspan="${span}">${escapeHtml(r.phone)}</td>
+          <td rowspan="${span}">${escapeHtml(r.area)}</td>
+        ` : "";
+        tr.innerHTML = `
+          ${householdCells}
+          <td>${escapeHtml(r.tree)}</td>
+          <td>${escapeHtml(r.variety)}</td>
+          <td>${escapeHtml(r.count)}</td>
+          <td>${escapeHtml(r.submittedBy)}</td>
+          <td class="row-actions">
+            ${canEdit ? `<button data-edit="${r.id}">✎</button><button data-del="${r.id}" class="del">🗑</button>` : ""}
+          </td>
+        `;
+        el.recordsBody.appendChild(tr);
+      });
     }
     el.recordsBody.querySelectorAll("[data-edit]").forEach((btn) =>
       btn.addEventListener("click", () => openEditModal(btn.dataset.edit))
@@ -130,7 +149,11 @@
 
   async function loadFacets() {
     try {
-      const res = await api("/api/facets");
+      const params = new URLSearchParams();
+      if (el.regionFilter.value) params.set("region", el.regionFilter.value);
+      if (el.districtFilter.value) params.set("district", el.districtFilter.value);
+      if (el.mahallaFilter.value) params.set("mahalla", el.mahallaFilter.value);
+      const res = await api(`/api/facets?${params.toString()}`);
       const data = await res.json();
       fillSelect(el.mahallaFilter, "Barcha MFY", data.mahallas || []);
       fillSelect(el.treeFilter, "Barcha ko'chat turlari", data.trees || []);
@@ -212,6 +235,84 @@
   }
   function closeModal() { el.modalRoot.innerHTML = ""; }
 
+  async function openUsersModal() {
+    el.modalRoot.innerHTML = `
+      <div class="modal-backdrop">
+        <div class="modal-card modal-card-wide">
+          <h2>Login va parollarni boshqarish</h2>
+          <input id="users-search" type="text" placeholder="Login, viloyat yoki tuman bo'yicha qidirish..." />
+          <div class="users-table-wrap">
+            <table id="users-table">
+              <thead>
+                <tr><th>Login</th><th>Viloyat</th><th>Tuman</th><th>Yangi parol</th><th></th></tr>
+              </thead>
+              <tbody id="users-body"></tbody>
+            </table>
+          </div>
+          <div class="modal-actions">
+            <button class="btn-secondary" id="users-close">Yopish</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.getElementById("users-close").addEventListener("click", closeModal);
+
+    let allUsers = [];
+    try {
+      const res = await api("/api/admin/users");
+      allUsers = await res.json();
+    } catch (err) {
+      showToast("error", err.message);
+      return;
+    }
+
+    function renderUsers(users) {
+      const body = document.getElementById("users-body");
+      if (!body) return;
+      body.innerHTML = users.map((u) => `
+        <tr data-username="${escapeHtml(u.username)}">
+          <td>${escapeHtml(u.username)}</td>
+          <td>${escapeHtml(u.region || "")}</td>
+          <td>${escapeHtml(u.district || "")}</td>
+          <td><input type="password" class="users-pw-input" placeholder="kamida 6 belgi" /></td>
+          <td><button class="btn-primary users-save-btn">Saqlash</button></td>
+        </tr>
+      `).join("");
+      body.querySelectorAll(".users-save-btn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const tr = btn.closest("tr");
+          const username = tr.dataset.username;
+          const pwInput = tr.querySelector(".users-pw-input");
+          const password = pwInput.value;
+          if (password.length < 6) {
+            showToast("error", "Parol kamida 6 belgidan iborat bo'lishi kerak.");
+            return;
+          }
+          try {
+            await api(`/api/admin/users/${encodeURIComponent(username)}/password`, {
+              method: "PUT",
+              body: JSON.stringify({ password }),
+            });
+            showToast("success", `${username} paroli yangilandi.`);
+            pwInput.value = "";
+          } catch (err) {
+            showToast("error", err.message);
+          }
+        });
+      });
+    }
+
+    renderUsers(allUsers);
+
+    document.getElementById("users-search").addEventListener("input", (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      const filtered = !q ? allUsers : allUsers.filter((u) =>
+        [u.username, u.region, u.district].some((v) => (v || "").toLowerCase().includes(q))
+      );
+      renderUsers(filtered);
+    });
+  }
+
   async function confirmDelete(id) {
     if (!window.confirm("Bu yozuvni o'chirishni tasdiqlaysizmi?")) return;
     try {
@@ -282,15 +383,25 @@
   });
   el.loginPassword.addEventListener("keydown", (e) => { if (e.key === "Enter") el.loginBtn.click(); });
   el.logoutBtn.addEventListener("click", logout);
+  el.usersBtn.addEventListener("click", openUsersModal);
   el.searchInput.addEventListener("input", () => {
     clearTimeout(state.searchTimer);
     state.searchTimer = setTimeout(loadRecords, 300);
   });
   el.treeFilter.addEventListener("change", loadRecords);
   el.yearFilter.addEventListener("change", loadRecords);
-  el.mahallaFilter.addEventListener("change", loadRecords);
-  el.regionFilter.addEventListener("change", () => { el.districtFilter.value = ""; loadRecords(); });
-  el.districtFilter.addEventListener("change", loadRecords);
+  el.mahallaFilter.addEventListener("change", () => { loadFacets(); loadRecords(); });
+  el.regionFilter.addEventListener("change", () => {
+    el.districtFilter.value = "";
+    el.mahallaFilter.value = "";
+    loadFacets();
+    loadRecords();
+  });
+  el.districtFilter.addEventListener("change", () => {
+    el.mahallaFilter.value = "";
+    loadFacets();
+    loadRecords();
+  });
   el.exportBtn.addEventListener("click", doExport);
 
   if (state.token && state.session) showApp();
